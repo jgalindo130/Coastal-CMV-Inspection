@@ -21,7 +21,7 @@
   h1,h2,h3,.display{ font-family:'Oswald',sans-serif; letter-spacing:0.02em; text-transform:uppercase; margin:0; }
   .mono{ font-family:'IBM Plex Mono',monospace; letter-spacing:0.02em; }
 
-  header.app-head{ background:linear-gradient(180deg,#20262C 0%, #171C21 100%); border-bottom:3px solid var(--accent); padding:14px 16px 14px; position:sticky; top:0; z-index:20; }
+  header.app-head{ background:linear-gradient(180deg,#20262C 0%, #171C21 100%); padding:14px 16px 10px; }
   .brand-row{ max-width:960px; margin:0 auto 12px; display:flex; justify-content:center; background:var(--paper); border-radius:8px; padding:10px 16px; }
   .brand-logo{ height:44px; width:auto; display:block; }
   .head-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:960px; margin:0 auto; }
@@ -45,7 +45,8 @@
   .progress-fill{ height:100%; background:var(--accent); transition:width .25s ease; }
   .progress-label{ font-size:11px; color:var(--muted); margin-top:6px; font-family:'IBM Plex Mono',monospace; display:flex; justify-content:space-between; }
 
-  .tabs{ max-width:960px; margin:16px auto 0; padding:0 16px; display:flex; gap:6px; overflow-x:auto; scrollbar-width:thin; }
+  .tabs-bar{ position:sticky; top:0; z-index:20; background:var(--ink); border-bottom:3px solid var(--accent); padding-top:10px; }
+  .tabs{ max-width:960px; margin:0 auto; padding:0 16px 10px; display:flex; gap:6px; overflow-x:auto; scrollbar-width:thin; }
   .tab{ flex:none; min-width:118px; background:var(--panel); border:1px solid var(--line); border-radius:8px 8px 0 0; padding:10px 8px; text-align:center; cursor:pointer; position:relative; }
   .tab.active{ background:var(--panel-2); border-bottom-color:var(--panel-2); }
   .tab.active::after{ content:''; position:absolute; left:0; right:0; bottom:-2px; height:3px; background:var(--accent); }
@@ -185,9 +186,11 @@
     <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
     <div class="progress-label"><span id="progressText">0 / 0 items assessed</span><span id="progressPct">0%</span></div>
   </div>
-
-  <div class="tabs" id="tabs"></div>
 </header>
+
+<div class="tabs-bar">
+  <div class="tabs" id="tabs"></div>
+</div>
 
 <main>
   <div class="panel" id="panel"></div>
@@ -251,7 +254,7 @@
 <div class="overlay" id="reportImageOverlay">
   <div class="report" style="max-width:720px;">
     <h2>Report Image</h2>
-    <div class="sub">Press and hold the image below, then choose "Add to Photos" or "Save to Files".</div>
+    <div class="sub">Press and hold the image below, then choose "Add to Photos" or "Save to Files" — you can print it later once you reach a printer.</div>
     <div style="margin:16px 0; max-height:60vh; overflow-y:auto; border:1px solid #DDD8CC; border-radius:8px;">
       <img id="reportImageOutput" src="" style="width:100%; display:block;">
     </div>
@@ -805,7 +808,7 @@ function openReport(){
         </div>
       </div>`).join('');
 
-  const downloadLabel = isIOSDevice() ? 'Download Report Image' : 'Download PDF';
+  const downloadLabel = isIOSDevice() ? 'Save Report Image (Print Later)' : 'Save Report as PDF (Print Later)';
 
   content.innerHTML = `
     <h2>Inspection Report</h2>
@@ -823,6 +826,9 @@ function openReport(){
       <button class="rbtn primary" onclick="downloadPDF()">${downloadLabel}</button>
       <button class="rbtn" onclick="copyReport()">Copy as Text</button>
       <button class="rbtn close" onclick="closeReport()">Close</button>
+    </div>
+    <div style="font-size:11.5px; color:#5A6270; margin-top:10px; text-align:center;">
+      Saves to this device now — open it later to print whenever a printer is available.
     </div>
   `;
   overlay.classList.add('open');
