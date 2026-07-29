@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>CMV Pre-Trip Inspection</title>
+<title>CMV Audit Inspection</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -13,7 +13,7 @@
     --paper:#F3F1EA; --muted:#8A94A0; --accent:#E8590C;
     --oos:#D7263D; --oos-dim:#3A1319;
     --nonoos:#F2A900; --nonoos-dim:#3A2E0A;
-    --pm:#2AA9A0; --pm-dim:#123330; --ok:#2AA968; --ok-dim:#123321; --radius:10px;
+    --pm:#2AA9A0; --pm-dim:#123330; --ok:#2AA968; --ok-dim:#123321; --na:#6B7280; --na-dim:#262B30; --radius:10px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -22,8 +22,8 @@
   .mono{ font-family:'IBM Plex Mono',monospace; letter-spacing:0.02em; }
 
   header.app-head{ background:linear-gradient(180deg,#20262C 0%, #171C21 100%); padding:14px 16px 10px; }
-  .brand-row{ max-width:960px; margin:0 auto 12px; display:flex; justify-content:center; background:var(--paper); border-radius:8px; padding:10px 16px; }
-  .brand-logo{ height:44px; width:auto; display:block; }
+  .brand-row{ margin:-14px -16px 12px; display:flex; justify-content:center; background:var(--paper); padding:10px 0; }
+  .brand-logo{ width:100%; height:auto; display:block; }
   .head-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:960px; margin:0 auto; }
   .head-title{ display:flex; align-items:center; gap:12px; }
   .stripe-badge{ width:38px; height:38px; border-radius:6px; background:repeating-linear-gradient(45deg, var(--accent) 0 6px, #171C21 6px 12px); border:2px solid var(--accent); flex:none; }
@@ -62,6 +62,7 @@
   .item-desc{ font-size:12.5px; color:var(--muted); margin-top:3px; line-height:1.4; }
   .status-tag{ display:inline-block; margin-top:8px; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:3px 8px; border-radius:5px; letter-spacing:0.04em; }
   .status-tag.compliant{ background:var(--ok-dim); color:#8FE8B4; }
+  .status-tag.na{ background:var(--na-dim); color:#C7CDD4; }
   .status-tag.oos{ background:var(--oos-dim); color:#FF8A9A; }
   .status-tag.nonoos{ background:var(--nonoos-dim); color:#FFD873; }
   .status-tag.pm{ background:var(--pm-dim); color:#7FE0D8; }
@@ -70,13 +71,17 @@
   .vbtn{ flex:1; min-width:100px; border-radius:8px; padding:11px 8px; font-family:'Oswald',sans-serif; font-size:11.5px; letter-spacing:0.03em; text-transform:uppercase; font-weight:600; cursor:pointer; border:1.5px solid var(--line); background:var(--panel); color:var(--paper); }
   .vbtn:active{ transform:scale(0.97); }
   .vbtn.compliant.on{ background:var(--ok); border-color:var(--ok); color:#04210f; }
+  .vbtn.na.on{ background:var(--na); border-color:var(--na); color:#fff; }
   .vbtn.oos.on{ background:var(--oos); border-color:var(--oos); color:#fff; }
   .vbtn.nonoos.on{ background:var(--nonoos); border-color:var(--nonoos); color:#1C1600; }
   .vbtn.pm.on{ background:var(--pm); border-color:var(--pm); color:#04211E; }
 
-  .photo-row{ display:flex; align-items:center; gap:10px; margin-top:10px; }
-  .photo-thumb{ width:64px; height:64px; object-fit:cover; border-radius:6px; border:1px solid var(--line); cursor:pointer; }
-  .photo-actions button{ background:none; border:none; color:var(--accent); font-size:11.5px; font-weight:600; cursor:pointer; padding:0; margin-right:12px; }
+  .photo-row{ display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap; }
+  .photo-thumb-wrap{ position:relative; flex:none; }
+  .photo-thumb{ width:64px; height:64px; object-fit:cover; border-radius:6px; border:1px solid var(--line); cursor:pointer; display:block; }
+  .photo-remove{ position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background:var(--oos); color:#fff; border:2px solid var(--panel); font-size:12px; line-height:1; cursor:pointer; padding:0; }
+  .photo-actions{ display:flex; flex-direction:column; gap:4px; }
+  .photo-actions button{ background:none; border:none; color:var(--accent); font-size:11.5px; font-weight:600; cursor:pointer; padding:0; text-align:left; }
   .photo-missing{ font-size:11.5px; color:#FF8A9A; font-family:'IBM Plex Mono',monospace; margin-top:8px; }
 
   .note-toggle{ background:none; border:none; color:var(--accent); font-size:11.5px; font-weight:600; margin-top:9px; cursor:pointer; padding:0; font-family:'Inter',sans-serif; }
@@ -117,7 +122,7 @@
   .rc{ flex:1; text-align:center; padding:10px 4px; border-radius:8px; }
   .rc .n{ font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; display:block; }
   .rc .l{ font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:#5A6270; }
-  .rc.compliant{ background:#D7F5E3; } .rc.oos{ background:#F6D8DC; } .rc.nonoos{ background:#FBEBC6; } .rc.pm{ background:#CFEDE9; }
+  .rc.compliant{ background:#D7F5E3; } .rc.na{ background:#E5E7EB; } .rc.oos{ background:#F6D8DC; } .rc.nonoos{ background:#FBEBC6; } .rc.pm{ background:#CFEDE9; }
   .flag-list{ margin-top:16px; max-height:340px; overflow-y:auto; }
   .flag-item{ border-bottom:1px solid #DDD8CC; padding:10px 0; display:flex; gap:10px; }
   .flag-item img{ width:44px; height:44px; object-fit:cover; border-radius:6px; flex:none; }
@@ -159,12 +164,13 @@
   <div class="head-row">
     <div class="head-title">
       <div>
-        <h1>CMV Pre-Trip Inspection</h1>
-        <p>Detailed roadside checklist</p>
+        <h1>CMV Audit Inspection</h1>
+        <p>Detailed Audit Checklist</p>
       </div>
     </div>
-    <div style="display:flex; gap:8px;">
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="icon-btn" onclick="confirmNewReport()">New Report</button>
+      <button class="icon-btn" onclick="openAuditReport()">Audit Report</button>
       <button class="icon-btn" onclick="openReport()">Summary</button>
     </div>
   </div>
@@ -238,6 +244,75 @@
 </div>
 <canvas id="captureCanvas" style="display:none"></canvas>
 
+<div class="overlay" id="auditOverlay">
+  <div class="report" style="max-width:760px;">
+    <h2>Audit Report</h2>
+    <div class="sub" style="text-transform:none; font-family:'Inter',sans-serif; font-size:12.5px; margin-top:8px; color:#5A6270;">
+      Filters inspections logged on this device this session. To cover your whole team, have each inspector export their log and import all files together here.
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; margin:16px 0 10px;">
+      <div>
+        <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:#5A6270; margin-bottom:4px;">Inspector</label>
+        <select id="af-inspector" style="width:100%; padding:8px; border-radius:6px; border:1px solid #C9C4B6; font-size:13px;"></select>
+      </div>
+      <div>
+        <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:#5A6270; margin-bottom:4px;">Driver</label>
+        <input id="af-driver" type="text" style="width:100%; padding:8px; border-radius:6px; border:1px solid #C9C4B6; font-size:13px;">
+      </div>
+      <div>
+        <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:#5A6270; margin-bottom:4px;">Location</label>
+        <input id="af-location" type="text" style="width:100%; padding:8px; border-radius:6px; border:1px solid #C9C4B6; font-size:13px;">
+      </div>
+      <div>
+        <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:#5A6270; margin-bottom:4px;">Unit</label>
+        <input id="af-unit" type="text" style="width:100%; padding:8px; border-radius:6px; border:1px solid #C9C4B6; font-size:13px;">
+      </div>
+      <div>
+        <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:#5A6270; margin-bottom:4px;">From Date</label>
+        <input id="af-from" type="date" style="width:100%; padding:8px; border-radius:6px; border:1px solid #C9C4B6; font-size:13px;">
+      </div>
+      <div>
+        <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:#5A6270; margin-bottom:4px;">To Date</label>
+        <input id="af-to" type="date" style="width:100%; padding:8px; border-radius:6px; border:1px solid #C9C4B6; font-size:13px;">
+      </div>
+      <div>
+        <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:#5A6270; margin-bottom:4px;">Findings</label>
+        <select id="af-finding" style="width:100%; padding:8px; border-radius:6px; border:1px solid #C9C4B6; font-size:13px;">
+          <option value="all">All Inspections</option>
+          <option value="compliant">Has Compliant</option>
+          <option value="oos">Has Out of Service</option>
+          <option value="nonoos">Has Non-Out of Service</option>
+          <option value="pm">Has Preventative Maint.</option>
+        </select>
+      </div>
+    </div>
+    <button class="rbtn primary" style="margin-bottom:14px; flex:none; display:inline-block; padding:9px 16px;" onclick="renderAuditResults()">Apply Filters</button>
+
+    <div id="auditResults"></div>
+
+    <div class="report-actions">
+      <button class="rbtn" onclick="exportAuditCSV()">Export Filtered (CSV)</button>
+      <button class="rbtn" onclick="exportAuditLog()">Export Log (JSON)</button>
+      <button class="rbtn" onclick="document.getElementById('auditImportInput').click()">Import Log (JSON)</button>
+      <button class="rbtn close" onclick="closeAuditReport()">Close</button>
+    </div>
+    <input type="file" id="auditImportInput" accept="application/json" style="display:none" onchange="importAuditLogFile(event)">
+  </div>
+</div>
+
+<div class="overlay" id="morePhotosOverlay">
+  <div class="report" style="max-width:400px;">
+    <h2>Add Another Photo?</h2>
+    <div class="sub" style="text-transform:none; font-family:'Inter',sans-serif; font-size:13px; margin-top:10px; color:#3A4048;">
+      Photo saved. Do you need to capture another photo for this line item?
+    </div>
+    <div class="report-actions">
+      <button class="rbtn" onclick="finishPhotosForItem()">No, I'm Done</button>
+      <button class="rbtn primary" onclick="addAnotherPhoto()">Yes, Add Another</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="newReportOverlay">
   <div class="report" style="max-width:420px;">
     <h2>Start New Report?</h2>
@@ -274,39 +349,54 @@ const GROUPS = [
     ["Vehicle registration present","Current registration card in the vehicle"],
     ["Proof of insurance present","Current insurance card in the vehicle"],
     ["Hazmat shipping papers accurate","Match the load, accessible, properly completed"],
-    ["Emergency response information present","Accessible to driver, matches materials being hauled"],
     ["Hours of service record current","Log up to date and available for review"],
     ["Previous inspection report reviewed","Prior DVIR checked for open/unresolved defects"],
+    ["VIK Inspections","Confirm current and on file"],
+    ["VILK Inspections","Confirm current and on file"],
+    ["Insurance cab card","Present in vehicle and current"],
+    ["HAZMAT certificate","Valid and present in vehicle"],
+    ["IFTA Tax","Current decal/credentials displayed and on file"],
+    ["Weight and Distance permit","Valid permit present for applicable states"],
+    ["Special Permit","Enter permit number if applicable"],
+    ["ELD Manual","Electronic logging device instruction manual present"],
+    ["State inspection","Current state inspection sticker/certificate valid"],
+    ["Paper log book","Present as backup in case of ELD malfunction"],
   ]},
   { key:'engine', label:'Engine Compartment', code:'EC', items:[
     ["Engine oil level","Between marks, no visible leaks"],
     ["Coolant level","Correct level, no leaks or residue at hoses/radiator"],
     ["Power steering fluid","Correct level, no leaks"],
+    ["Washer Fluid Level","Reservoir filled to adequate level"],
     ["Belts","Free of cracks, fraying, proper tension"],
     ["Hoses","Free of leaks, cracks, bulges, or chafing"],
+    ["Fuel line leaks","Lines free of leaks, cracks, or chafing"],
     ["Battery & terminals","Securely mounted, terminals clean and tight, no corrosion"],
     ["Air compressor & lines","Mounted securely, no leaks"],
+    ["Pitman Arm","Secure, no excessive play or looseness"],
+    ["Drag link","Secure, no excessive play or damage"],
+    ["Steering Gear Box","Securely mounted, no leaks, no excessive play"],
+    ["Fan blades","No cracks, chips, or missing sections"],
+    ["Air Filter","Clean, properly seated, no damage"],
+    ["Hood Hangers","Secure and undamaged"],
+    ["Hood Latches","Latch and hold securely, hood cannot fly open"],
   ]},
   { key:'cab', label:'In-Cab Checks', code:'IC', items:[
-    ["Parking brake holds","Vehicle does not move with parking brake set and in gear"],
     ["Clutch & transmission","Engages smoothly, no unusual noise or slippage"],
     ["Steering wheel play","Free play within acceptable limits"],
-    ["Horn","Audible when tested"],
+    ["Horn City/Air","Both city (electric) and air horn audible when tested"],
     ["Wipers & washers","Clear windshield effectively, adequate fluid"],
     ["Heater & defroster","Functions correctly"],
     ["Mirrors adjusted","Properly positioned for driver's view"],
-    ["Seat belt","Latches and retracts correctly, no fraying"],
     ["Gauges","Oil pressure, air pressure, coolant temp, voltmeter read correctly"],
-    ["Warning lights & buzzers","Activate and clear appropriately"],
+    ["Windshield (Glazing, Cracks, Chips)","Free of damage obstructing driver's view"],
+    ["Cleanliness","Cab free of debris, trash, and clutter"],
   ]},
   { key:'front', label:'Front of Vehicle', code:'FR', items:[
-    ["Headlights (low/high beam)","Both function, properly aimed"],
-    ["Front turn signals","Function correctly"],
     ["Front tires","Adequate tread, no cuts/bulges, correct inflation"],
     ["Front wheels & rims","No cracks, all lug nuts present and tight"],
-    ["Steering linkage","Components secure, no excess play or damage"],
     ["Front suspension","Springs, shackles, U-bolts intact and secure"],
-    ["Windshield condition","Free of cracks obstructing view"],
+    ["Placard tree and placards","Mounted securely, correct placards displayed and legible"],
+    ["Bumper mounts","Securely mounted, no cracks or damage"],
   ]},
   { key:'driverside', label:"Driver's Side", code:'DS', items:[
     ["Fuel tank(s)","Securely mounted, cap in place, no leaks"],
@@ -315,15 +405,17 @@ const GROUPS = [
     ["Mud flaps","Present and securely mounted"],
     ["Frame & crossmembers","No cracks, bends, or corrosion"],
     ["Exhaust system","Securely mounted, no leaks near cab or fuel"],
+    ["Capped hoses","Unused hose ends properly capped, no leaks"],
+    ["Capped Plumbing","Unused plumbing fittings properly capped, no leaks"],
+    ["Placards","Correct placards displayed, legible, secure"],
+    ["Hub Oiler","Level visible and adequate, no leaks"],
   ]},
   { key:'rear', label:'Rear / Trailer', code:'RR', items:[
-    ["Tail lights & brake lights","Function correctly"],
-    ["Rear turn signals","Function correctly"],
-    ["Reflectors / conspicuity tape","Present, clean, correctly positioned"],
-    ["Rear doors & hinges","Close and latch securely"],
-    ["Cargo securement","Load secured, straps/tarps in good condition"],
     ["License plate","Present, secure, legible"],
+    ["Mud flaps","Present and securely mounted"],
     ["Rear hazmat placards","Correct placards displayed, legible, secure"],
+    ["Tank lid","Closed and secured, no leaks"],
+    ["Capped hoses in hose tube","Properly capped and stored, no leaks"],
   ]},
   { key:'passenger', label:"Passenger's Side", code:'PX', items:[
     ["Passenger-side tires","Adequate tread, no damage, correct inflation"],
@@ -332,6 +424,9 @@ const GROUPS = [
     ["Mud flaps","Present and securely mounted"],
     ["Passenger mirror","Intact, securely mounted"],
     ["Side hazmat placards","Correct placards displayed, legible, secure"],
+    ["Exhaust","Securely mounted, no leaks near cab or fuel"],
+    ["Capped hoses","Unused hose ends properly capped, no leaks"],
+    ["Capped plumbing","Unused plumbing fittings properly capped, no leaks"],
   ]},
   { key:'coupling', label:'Coupling System', code:'CS', items:[
     ["Fifth wheel locked","Jaws closed around kingpin, no visible gap"],
@@ -340,26 +435,56 @@ const GROUPS = [
     ["Air & electrical lines","Connected, not chafed or leaking"],
     ["Landing gear","Fully raised, crank stored, no damage"],
   ]},
+  { key:'lighting', label:'Lighting', code:'LT', items:[
+    ["Headlights (low/high beam)","Both function, properly aimed"],
+    ["Front turn signals","Function correctly"],
+    ["Clearance lamps above cab","Present, functioning, and correctly colored"],
+    ["Tail lights & brake lights","Function correctly"],
+    ["Rear turn signals","Function correctly"],
+    ["Reflectors / C2 Tape (Red/White) — Rear","Present, clean, correctly positioned"],
+    ["License plate lamp","Present and functioning"],
+    ["C2 tape on tank (White 12 inches)","Present, correct length, correctly positioned"],
+    ["C2 reflective tape (Red/White) — Driver's Side","Present, undamaged, correctly positioned"],
+    ["C2 Tape (Red/White) — Passenger's Side","Present, undamaged, correctly positioned"],
+    ["Four-way flashers","Function correctly"],
+    ["Brake lights confirmed","Activate with service brake application"],
+  ]},
   { key:'brakes', label:'Brake System', code:'BK', items:[
     ["Air pressure build-up","Builds to governed cut-out within specified time"],
     ["Low air warning","Activates at correct psi"],
     ["Air governor cut-out","Cuts out at correct psi (typically ~120–125 psi)"],
+    ["1 Minute test","Air pressure loss within 1 minute stays within allowable limit"],
+    ["Pump down test","Low air warning and spring brakes activate at correct psi as air bleeds down"],
+    ["Parking brake holds","Vehicle does not move with parking brake set and in gear"],
     ["Parking (spring) brake test","Holds vehicle when applied"],
     ["Service brake stopping test","Vehicle stops straight, no pulling"],
     ["Brake drums/shoes/pads","Within spec, no cracks or excessive wear"],
+    ["Brake air chamber","Securely mounted, no leaks or damage"],
     ["Slack adjusters","Pushrod travel within adjustment limits"],
-  ]},
-  { key:'final', label:'Final Check & Signals', code:'FC', items:[
-    ["Four-way flashers","Function correctly"],
-    ["Brake lights confirmed","Activate with service brake application"],
-    ["Backup alarm (if equipped)","Functions correctly"],
+    ["Inner Wheel seal","No leaks, no visible wear or damage"],
+    ["Brake air lines chafing","Lines free of rubbing, cracks, or wear points"],
     ["ABS malfunction lamp","Illuminates at start-up then goes out"],
-    ["Loose items secured in cab","Nothing that could become a projectile"],
+  ]},
+  { key:'safety', label:'Safety Items', code:'SF', items:[
+    ["Emergency response information present","Accessible to driver, matches materials being hauled"],
+    ["Emergency Response Guidebook","Current edition present and accessible"],
+    ["Safety Data Sheets","Present and accessible for materials being hauled"],
+    ["Seat belt","Latches and retracts correctly, no fraying"],
+    ["Warning lights & buzzers","Activate and clear appropriately"],
+    ["Secure cargo in cab","No loose items that could become a projectile"],
+    ["5lb Extinguisher in cab","Present, charged, and properly mounted"],
+    ["Spare Bulbs and Fuses","Present and correct type/rating"],
+    ["Ground and bond reel","Present, functional, cable intact"],
+    ["Safety Triangles","Present, correct quantity, undamaged"],
+    ["Cargo securement — Trailer","Load secured, straps/tarps in good condition"],
+    ["Cargo securement — Outside","Load secured, straps/tarps in good condition"],
+    ["Backup alarm (if equipped)","Functions correctly"],
+    ["Cargo Securement in cab","Nothing that could become a projectile"],
   ]},
 ];
 
 const state = {};
-GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', photo:null})); });
+GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', photos:[], permitNumber:''})); });
 let activeGroup = GROUPS[0].key;
 let pendingCapture = null;
 
@@ -380,6 +505,7 @@ function renderTabs(){
 /* ---------------- Items ---------------- */
 function labelFor(status){
   if(status==='compliant') return 'Compliant';
+  if(status==='na') return 'N/A';
   return status==='oos' ? 'Out of Service' : status==='nonoos' ? 'Non-Out of Service' : 'Preventative Maintenance';
 }
 
@@ -395,16 +521,31 @@ function renderPanel(){
     const tagHtml = st.status ? `<span class="status-tag ${st.status}">${labelFor(st.status)} selected</span>` : '';
 
     let photoHtml = '';
-    if(st.status && st.status !== 'compliant'){
-      if(st.photo){
+    if(st.status && st.status !== 'compliant' && st.status !== 'na'){
+      if(st.photos && st.photos.length>0){
+        const thumbs = st.photos.map((src,pi)=>`
+          <div class="photo-thumb-wrap">
+            <img class="photo-thumb" data-role="thumb" data-idx="${pi}" src="${src}">
+            <button class="photo-remove" data-role="removephoto" data-idx="${pi}" title="Remove photo">×</button>
+          </div>`).join('');
         photoHtml = `<div class="photo-row">
-          <img class="photo-thumb" data-role="thumb" src="${st.photo}">
-          <div class="photo-actions"><button data-role="retake">Retake photo</button><button data-role="clearfinding">Clear finding</button></div>
+          ${thumbs}
+          <div class="photo-actions">
+            <button data-role="addphoto">+ Add Photo</button>
+            <button data-role="clearfinding">Clear finding</button>
+          </div>
         </div>`;
       } else {
         photoHtml = `<div class="photo-missing">⚠ Photo required — tap the status button again to capture it.</div>`;
       }
     }
+
+    const permitHtml = item[0]==='Special Permit'
+      ? `<div style="margin-top:10px;">
+          <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:4px;">Permit Number</label>
+          <input data-role="permitnum" type="text" placeholder="Enter permit number if applicable" value="${(st.permitNumber||'').replace(/"/g,'&quot;')}" style="width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:9px 10px; font-size:13px; font-family:'IBM Plex Mono',monospace;">
+        </div>`
+      : '';
 
     wrap.innerHTML = `
       <div class="item-top">
@@ -420,7 +561,9 @@ function renderPanel(){
         <button class="vbtn oos ${st.status==='oos'?'on':''}" data-role="oos">Out of Service</button>
         <button class="vbtn nonoos ${st.status==='nonoos'?'on':''}" data-role="nonoos">Non-Out of Service</button>
         <button class="vbtn pm ${st.status==='pm'?'on':''}" data-role="pm">Preventative Maint.</button>
+        <button class="vbtn na ${st.status==='na'?'on':''}" data-role="na">N/A</button>
       </div>
+      ${permitHtml}
       ${photoHtml}
       <button class="note-toggle" data-role="notetoggle">${st.note ? '✎ Edit note' : '+ Add note'}</button>
       <div class="note-area" data-role="notearea">
@@ -434,6 +577,8 @@ function renderPanel(){
     wrap.querySelectorAll('.vbtn').forEach(btn=>{
       btn.addEventListener('click', ()=> handleStatusClick(group.key, i, btn.getAttribute('data-role')));
     });
+    const permitInput = wrap.querySelector('[data-role="permitnum"]');
+    if(permitInput){ permitInput.addEventListener('input', e=>{ st.permitNumber = e.target.value; }); }
     const noteToggle = wrap.querySelector('[data-role="notetoggle"]');
     const noteArea = wrap.querySelector('[data-role="notearea"]');
     noteToggle.addEventListener('click', ()=> noteArea.classList.toggle('open'));
@@ -445,12 +590,21 @@ function renderPanel(){
     const micBtn = wrap.querySelector('[data-role="mic"]');
     setupMicButton(micBtn, textarea, st);
 
-    const thumb = wrap.querySelector('[data-role="thumb"]');
-    if(thumb){ thumb.addEventListener('click', ()=> openLightbox(st.photo)); }
-    const retakeBtn = wrap.querySelector('[data-role="retake"]');
-    if(retakeBtn){ retakeBtn.addEventListener('click', ()=>{ pendingCapture = {groupKey:group.key, idx:i, role:st.status}; openCameraCapture(); }); }
+    wrap.querySelectorAll('[data-role="thumb"]').forEach(thumb=>{
+      thumb.addEventListener('click', ()=> openLightbox(st.photos[Number(thumb.getAttribute('data-idx'))]));
+    });
+    wrap.querySelectorAll('[data-role="removephoto"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = Number(btn.getAttribute('data-idx'));
+        st.photos.splice(idx,1);
+        if(st.photos.length===0){ st.status = null; }
+        renderAll();
+      });
+    });
+    const addPhotoBtn = wrap.querySelector('[data-role="addphoto"]');
+    if(addPhotoBtn){ addPhotoBtn.addEventListener('click', ()=>{ pendingCapture = {groupKey:group.key, idx:i, role:st.status}; openCameraCapture(); }); }
     const clearBtn = wrap.querySelector('[data-role="clearfinding"]');
-    if(clearBtn){ clearBtn.addEventListener('click', ()=>{ st.status=null; st.photo=null; renderAll(); }); }
+    if(clearBtn){ clearBtn.addEventListener('click', ()=>{ st.status=null; st.photos=[]; renderAll(); }); }
 
     panel.appendChild(wrap);
   });
@@ -459,12 +613,12 @@ function renderPanel(){
 function handleStatusClick(groupKey, idx, role){
   const st = state[groupKey][idx];
   if(st.status === role){
-    st.status = null; st.photo = null; renderAll(); return;
+    st.status = null; st.photos = []; renderAll(); return;
   }
-  if(role === 'compliant'){
-    st.status = 'compliant'; st.photo = null; renderAll(); return;
+  if(role === 'compliant' || role === 'na'){
+    st.status = role; st.photos = []; renderAll(); return;
   }
-  if(st.photo){
+  if(st.photos && st.photos.length>0){
     st.status = role; renderAll(); return;
   }
   pendingCapture = {groupKey, idx, role};
@@ -533,10 +687,25 @@ function takePhotoShot(){
   if(pendingCapture){
     const {groupKey, idx, role} = pendingCapture;
     state[groupKey][idx].status = role;
-    state[groupKey][idx].photo = dataUrl;
-    pendingCapture = null;
-    renderAll();
+    state[groupKey][idx].photos.push(dataUrl);
+    finishPhotoCaptured();
   }
+}
+
+/* After any photo is captured, ask whether another is needed for this same
+   line item, rather than a native confirm() (which can be silently blocked
+   in some embedded/preview contexts). */
+function finishPhotoCaptured(){
+  renderAll();
+  document.getElementById('morePhotosOverlay').classList.add('open');
+}
+function addAnotherPhoto(){
+  document.getElementById('morePhotosOverlay').classList.remove('open');
+  openCameraCapture();
+}
+function finishPhotosForItem(){
+  document.getElementById('morePhotosOverlay').classList.remove('open');
+  pendingCapture = null;
 }
 
 /* Fallback for browsers/contexts where live in-page camera access isn't available
@@ -555,9 +724,8 @@ cameraInput.addEventListener('change', e=>{
     compressImage(ev.target.result, dataUrl=>{
       const {groupKey, idx, role} = pendingCapture;
       state[groupKey][idx].status = role;
-      state[groupKey][idx].photo = dataUrl;
-      pendingCapture = null;
-      renderAll();
+      state[groupKey][idx].photos.push(dataUrl);
+      finishPhotoCaptured();
     });
   };
   reader.readAsDataURL(file);
@@ -753,8 +921,12 @@ function collectFlagged(){
   GROUPS.forEach(g=>{
     g.items.forEach((item,i)=>{
       const st = state[g.key][i];
-      if(st.status && st.status !== 'compliant'){
-        flagged.push({code:`${g.code}-${String(i+1).padStart(2,'0')}`, title:item[0], status:st.status, note:st.note, photo:st.photo, group:g.label});
+      if(st.status && st.status !== 'compliant' && st.status !== 'na'){
+        let note = st.note;
+        if(item[0]==='Special Permit' && st.permitNumber){
+          note = `Permit #: ${st.permitNumber}${note ? ' — ' + note : ''}`;
+        }
+        flagged.push({code:`${g.code}-${String(i+1).padStart(2,'0')}`, title:item[0], status:st.status, note, photos:st.photos||[], group:g.label});
       }
     });
   });
@@ -801,7 +973,7 @@ function openReport(){
     ? `<p class="empty-note">No items have been flagged yet.</p>`
     : flagged.map(f=>`
       <div class="flag-item">
-        ${f.photo ? `<img src="${f.photo}">` : ''}
+        ${f.photos && f.photos.length ? `<div style="display:flex; gap:4px; flex:none;">${f.photos.map(p=>`<img src="${p}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;">`).join('')}</div>` : ''}
         <div style="flex:1">
           <div class="fi-top"><span>${f.code} · ${f.title}</span><span class="fi-tag ${f.status}">${labelFor(f.status)}</span></div>
           ${f.note ? `<div class="fi-note">${escapeHtml(f.note)}</div>` : ''}
@@ -840,7 +1012,7 @@ function copyReport(){
   const {oos,nonoos,pm} = getCounts(flagged);
   const compliantCount = getCompliantCount();
   const v = getVehicleInfo();
-  const lines = flagged.map(f=>`[${f.code}] ${f.title} — ${labelFor(f.status)}${f.note ? ' | Note: '+f.note : ''}${f.photo ? ' | Photo attached' : ''}`);
+  const lines = flagged.map(f=>`[${f.code}] ${f.title} — ${labelFor(f.status)}${f.note ? ' | Note: '+f.note : ''}${f.photos && f.photos.length ? ` | ${f.photos.length} photo${f.photos.length>1?'s':''} attached` : ''}`);
   const text = [
     'CMV PRE-TRIP INSPECTION REPORT',
     `Unit: ${v.unit}   Trailer: ${v.trailer}`,
@@ -927,8 +1099,9 @@ async function renderReportCanvas(){
 
   const photoCache = {};
   for(const f of flagged){
-    if(f.photo && !photoCache[f.photo]){
-      try{ photoCache[f.photo] = await loadImageAsync(f.photo); }catch(e){ /* skip broken photo */ }
+    const firstPhoto = f.photos && f.photos[0];
+    if(firstPhoto && !photoCache[firstPhoto]){
+      try{ photoCache[firstPhoto] = await loadImageAsync(firstPhoto); }catch(e){ /* skip broken photo */ }
     }
   }
 
@@ -1037,9 +1210,15 @@ async function renderReportCanvas(){
     ctx.beginPath(); ctx.moveTo(margin, y); ctx.lineTo(margin+contentW, y); ctx.stroke();
     y += 12;
     let textX = margin;
-    const img = f.photo && photoCache[f.photo];
+    const firstPhoto = f.photos && f.photos[0];
+    const img = firstPhoto && photoCache[firstPhoto];
     if(img){
       ctx.drawImage(img, margin, y, 70, 70);
+      if(f.photos.length>1){
+        ctx.font = '9px Arial, sans-serif';
+        ctx.fillStyle = '#5A6270';
+        ctx.fillText(`+${f.photos.length-1} more`, margin, y+82);
+      }
       textX = margin + 82;
     }
     ctx.fillStyle = '#1B1E22';
@@ -1125,6 +1304,7 @@ function downloadPDF(){
 
   const flagged = collectFlagged();
   const {oos,nonoos,pm} = getCounts(flagged);
+  const compliantCount = getCompliantCount();
   const v = getVehicleInfo();
 
   doc.setFont('helvetica','bold'); doc.setFontSize(16);
@@ -1149,7 +1329,7 @@ function downloadPDF(){
   y += 40;
 
   doc.setFont('helvetica','normal'); doc.setFontSize(10);
-  doc.text(`Out of Service: ${oos}    Non-Out of Service: ${nonoos}    Preventative Maintenance: ${pm}`, margin, y);
+  doc.text(`Compliant: ${compliantCount}    Out of Service: ${oos}    Non-Out of Service: ${nonoos}    Preventative Maintenance: ${pm}`, margin, y);
   y += 22;
 
   doc.setFont('helvetica','bold'); doc.setFontSize(12);
@@ -1161,8 +1341,10 @@ function downloadPDF(){
   }
 
   flagged.forEach(f=>{
+    const firstPhoto = f.photos && f.photos[0];
+    const morePhotos = f.photos && f.photos.length>1 ? f.photos.length-1 : 0;
     const noteLines = f.note ? doc.splitTextToSize(f.note, pageW - margin*2 - 150) : [];
-    const imgH = f.photo ? 80 : 0;
+    const imgH = firstPhoto ? 80 : 0;
     const blockH = 34 + (noteLines.length*12) + (imgH ? imgH+8 : 0);
     if(y + blockH > pageH - margin){ doc.addPage(); y = margin; }
 
@@ -1173,8 +1355,16 @@ function downloadPDF(){
     y += 14;
 
     let textX = margin;
-    if(f.photo){
-      try{ doc.addImage(f.photo, 'JPEG', margin, y, 100, imgH); textX = margin + 112; }catch(e){}
+    if(firstPhoto){
+      try{
+        doc.addImage(firstPhoto, 'JPEG', margin, y, 100, imgH);
+        if(morePhotos>0){
+          doc.setFontSize(8);
+          doc.text(`+${morePhotos} more photo${morePhotos>1?'s':''}`, margin, y+imgH+9);
+          doc.setFontSize(9.5);
+        }
+        textX = margin + 112;
+      }catch(e){}
     }
     doc.setFontSize(9.5);
     noteLines.forEach((line,idx)=>{ doc.text(line, textX, y + 10 + idx*12); });
@@ -1204,6 +1394,200 @@ function downloadPDF(){
   doc.save(filename);
 }
 
+/* ---------------- Audit Report (session-based log, filterable, import/export) ---------------- */
+let auditLog = [];
+
+/* ---------------- Google Sheet submission ---------------- */
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycby8MBFFW01FY8u3zeK9Qw3V4b_IYJ0bLm4GI436BdYBcHNQPyCvvk0lZ3f295dJgdYmeQ/exec';
+let pendingSheetSubmissions = [];
+
+async function submitToGoogleSheet(record){
+  try{
+    await fetch(SHEET_API_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(record)
+    });
+    return true;
+  }catch(err){
+    return false;
+  }
+}
+
+async function flushPendingSheetSubmissions(){
+  if(pendingSheetSubmissions.length===0) return;
+  const remaining = [];
+  for(const rec of pendingSheetSubmissions){
+    const ok = await submitToGoogleSheet(rec);
+    if(!ok){ remaining.push(rec); }
+  }
+  pendingSheetSubmissions = remaining;
+}
+
+async function submitInspectionToSheet(record){
+  await flushPendingSheetSubmissions();
+  const ok = await submitToGoogleSheet(record);
+  if(!ok){ pendingSheetSubmissions.push(record); }
+}
+
+function logInspectionToAudit(){
+  const v = getVehicleInfo();
+  const flagged = collectFlagged();
+  const {oos,nonoos,pm} = getCounts(flagged);
+  const compliantCount = getCompliantCount();
+  const hasAnything = v.unit !== '—' || v.driver !== '—' || flagged.length>0 || compliantCount>0;
+  if(!hasAnything) return;
+
+  const record = {
+    id: Date.now() + '-' + Math.random().toString(36).slice(2,8),
+    date: v.date, unit: v.unit, trailer: v.trailer, driver: v.driver, carrier: v.carrier,
+    location: v.location, odometer: v.odometer, inspector: v.inspector, title: v.title,
+    compliant: compliantCount, oos, nonoos, pm,
+    findings: flagged.map(f=>({code:f.code, title:f.title, status:f.status, note:f.note, group:f.group}))
+  };
+
+  auditLog.push(record);
+  submitInspectionToSheet(record);
+}
+
+function populateInspectorFilter(){
+  const sel = document.getElementById('af-inspector');
+  const current = sel.value;
+  const names = Array.from(new Set(auditLog.map(r=>r.inspector).filter(n=>n && n !== '—')));
+  sel.innerHTML = '<option value="__all__">All Inspectors</option>' + names.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  if(names.includes(current)){ sel.value = current; }
+}
+
+function getAuditFilterValues(){
+  return {
+    inspector: document.getElementById('af-inspector').value,
+    driver: document.getElementById('af-driver').value.trim().toLowerCase(),
+    location: document.getElementById('af-location').value.trim().toLowerCase(),
+    unit: document.getElementById('af-unit').value.trim().toLowerCase(),
+    from: document.getElementById('af-from').value,
+    to: document.getElementById('af-to').value,
+    finding: document.getElementById('af-finding').value,
+  };
+}
+
+function filterAuditLog(){
+  const f = getAuditFilterValues();
+  return auditLog.filter(rec=>{
+    if(f.inspector && f.inspector !== '__all__' && rec.inspector !== f.inspector) return false;
+    if(f.driver && !String(rec.driver||'').toLowerCase().includes(f.driver)) return false;
+    if(f.location && !String(rec.location||'').toLowerCase().includes(f.location)) return false;
+    if(f.unit && !String(rec.unit||'').toLowerCase().includes(f.unit)) return false;
+    if(f.from && rec.date && rec.date < f.from) return false;
+    if(f.to && rec.date && rec.date > f.to) return false;
+    if(f.finding && f.finding !== 'all'){
+      if(f.finding==='compliant' && rec.compliant<=0) return false;
+      if(f.finding==='oos' && rec.oos<=0) return false;
+      if(f.finding==='nonoos' && rec.nonoos<=0) return false;
+      if(f.finding==='pm' && rec.pm<=0) return false;
+    }
+    return true;
+  });
+}
+
+function renderAuditResults(){
+  const rows = filterAuditLog();
+  const totals = rows.reduce((acc,r)=>{ acc.compliant+=r.compliant; acc.oos+=r.oos; acc.nonoos+=r.nonoos; acc.pm+=r.pm; return acc; }, {compliant:0,oos:0,nonoos:0,pm:0});
+
+  const tableRows = rows.map(r=>`
+    <tr>
+      <td style="padding:6px 8px; border-bottom:1px solid #EAE6DA;">${escapeHtml(r.date||'—')}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #EAE6DA;">${escapeHtml(r.unit||'—')}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #EAE6DA;">${escapeHtml(r.driver||'—')}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #EAE6DA;">${escapeHtml(r.inspector||'—')}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #EAE6DA;">${escapeHtml(r.location||'—')}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #EAE6DA; text-align:center;">${r.compliant}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #EAE6DA; text-align:center;">${r.oos}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #EAE6DA; text-align:center;">${r.nonoos}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #EAE6DA; text-align:center;">${r.pm}</td>
+    </tr>`).join('');
+
+  document.getElementById('auditResults').innerHTML = `
+    <div class="report-counts">
+      <div class="rc compliant"><span class="n">${totals.compliant}</span><span class="l">Compliant</span></div>
+      <div class="rc oos"><span class="n">${totals.oos}</span><span class="l">Out of Service</span></div>
+      <div class="rc nonoos"><span class="n">${totals.nonoos}</span><span class="l">Non-OOS</span></div>
+      <div class="rc pm"><span class="n">${totals.pm}</span><span class="l">Prev. Maint.</span></div>
+    </div>
+    <div style="font-size:11.5px; color:#5A6270; margin:8px 0;">${rows.length} inspection${rows.length!==1?'s':''} matched</div>
+    <div style="max-height:300px; overflow:auto; border:1px solid #DDD8CC; border-radius:8px;">
+      <table style="width:100%; border-collapse:collapse; font-size:12px;">
+        <thead>
+          <tr style="background:#F0EEE6; text-align:left;">
+            <th style="padding:6px 8px;">Date</th><th style="padding:6px 8px;">Unit</th><th style="padding:6px 8px;">Driver</th>
+            <th style="padding:6px 8px;">Inspector</th><th style="padding:6px 8px;">Location</th>
+            <th style="padding:6px 8px;">Comp.</th><th style="padding:6px 8px;">OOS</th><th style="padding:6px 8px;">Non-OOS</th><th style="padding:6px 8px;">PM</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows || '<tr><td colspan="9" style="padding:14px; text-align:center; color:#5A6270;">No matching inspections logged yet.</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function openAuditReport(){
+  populateInspectorFilter();
+  renderAuditResults();
+  document.getElementById('auditOverlay').classList.add('open');
+}
+function closeAuditReport(){ document.getElementById('auditOverlay').classList.remove('open'); }
+
+function exportAuditLog(){
+  if(auditLog.length===0){ alert('No inspections have been logged yet on this device this session.'); return; }
+  const blob = new Blob([JSON.stringify(auditLog, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `audit-log-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 30000);
+}
+
+function importAuditLogFile(e){
+  const file = e.target.files[0];
+  if(!file){ return; }
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const imported = JSON.parse(ev.target.result);
+      if(!Array.isArray(imported)) throw new Error('bad format');
+      const existingIds = new Set(auditLog.map(r=>r.id));
+      let added = 0;
+      imported.forEach(rec=>{
+        if(rec && rec.id && !existingIds.has(rec.id)){ auditLog.push(rec); existingIds.add(rec.id); added++; }
+      });
+      populateInspectorFilter();
+      renderAuditResults();
+      alert(`Imported ${added} new inspection(s). Audit log now has ${auditLog.length} total for this session.`);
+    }catch(err){
+      alert('Could not read that file — make sure it\'s an audit log JSON exported from this app.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function exportAuditCSV(){
+  const rows = filterAuditLog();
+  if(rows.length===0){ alert('No inspections match the current filters.'); return; }
+  const header = ['Date','Unit','Trailer','Driver','Carrier/DOT','Location','Odometer','Inspector','Title','Compliant','Out of Service','Non-Out of Service','Preventative Maintenance'];
+  const lines = [header.join(',')];
+  rows.forEach(r=>{
+    const vals = [r.date,r.unit,r.trailer,r.driver,r.carrier,r.location,r.odometer,r.inspector,r.title,r.compliant,r.oos,r.nonoos,r.pm];
+    lines.push(vals.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `audit-report-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 30000);
+}
+
 /* ---------------- New Report (reset everything) ---------------- */
 function confirmNewReport(){
   document.getElementById('newReportOverlay').classList.add('open');
@@ -1215,9 +1599,11 @@ function closeNewReportConfirm(){
 function startNewReport(){
   closeNewReportConfirm();
 
+  logInspectionToAudit();
+
   if(recognizingTextarea){ stopActiveRecognition(); }
 
-  GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', photo:null})); });
+  GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', photos:[], permitNumber:''})); });
   activeGroup = GROUPS[0].key;
   pendingCapture = null;
 
@@ -1243,6 +1629,7 @@ function startNewReport(){
 
 /* ---------------- Init ---------------- */
 document.getElementById('f-date').valueAsDate = new Date();
+window.addEventListener('online', flushPendingSheetSubmissions);
 renderAll();
 </script>
 
