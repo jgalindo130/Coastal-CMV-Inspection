@@ -1398,13 +1398,13 @@ function downloadPDF(){
 let auditLog = [];
 
 /* ---------------- Google Sheet submission ---------------- */
-const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycby8MBFFW01FY8u3zeK9Qw3V4b_IYJ0bLm4GI436BdYBcHNQPyCvvk0lZ3f295dJgdYmeQ/exec';
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw8F5mFIhSi9WJ336gfj7OfKSNYQIPFXMwDNfc0HBwTGIShkkr7a9a8n7qZQ2cf6pdfiw/exec';
 let pendingSheetSubmissions = [];
 
 async function submitToGoogleSheet(record){
   try{
     const url = SHEET_API_URL + '?data=' + encodeURIComponent(JSON.stringify(record));
-    await fetch(url, { method: 'GET', mode: 'no-cors' });
+    await fetch(url, { method: 'GET', mode: 'no-cors', keepalive: true });
     return true;
   }catch(err){
     return false;
