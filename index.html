@@ -45,6 +45,9 @@
   .progress-fill{ height:100%; background:var(--accent); transition:width .25s ease; }
   .progress-label{ font-size:11px; color:var(--muted); margin-top:6px; font-family:'IBM Plex Mono',monospace; display:flex; justify-content:space-between; }
 
+  .view-toggle{ display:flex; background:var(--panel-2); border:1px solid var(--line); border-radius:999px; padding:3px; gap:2px; max-width:960px; margin:12px auto 0; }
+  .view-toggle button{ flex:1; border:none; background:none; color:var(--muted); padding:9px 12px; border-radius:999px; font-family:'Oswald',sans-serif; font-size:12px; text-transform:uppercase; letter-spacing:0.04em; cursor:pointer; }
+  .view-toggle button.active{ background:var(--accent); color:#1a0d05; font-weight:700; }
   .tabs-bar{ position:sticky; top:0; z-index:20; background:var(--ink); border-bottom:3px solid var(--accent); padding-top:10px; }
   .tabs{ max-width:960px; margin:0 auto; padding:0 16px 10px; display:flex; gap:6px; overflow-x:auto; scrollbar-width:thin; }
   .tab{ flex:none; min-width:118px; background:var(--panel); border:1px solid var(--line); border-radius:8px 8px 0 0; padding:10px 8px; text-align:center; cursor:pointer; position:relative; }
@@ -89,6 +92,7 @@
   .note-area.open{ display:block; }
   .note-input-row{ display:flex; gap:8px; align-items:flex-start; }
   .note-area textarea{ flex:1; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:9px 10px; font-size:13px; font-family:'Inter',sans-serif; resize:vertical; min-height:52px; }
+  .finding-textarea{ flex:1; width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:12px 14px; font-size:16px; font-family:'Oswald',sans-serif; letter-spacing:0.01em; resize:vertical; min-height:64px; }
   .mic-btn{ flex:none; width:38px; height:38px; border-radius:8px; border:1.5px solid var(--line); background:var(--panel-2); color:var(--paper); cursor:pointer; font-size:15px; }
   .mic-btn.recording{ background:var(--oos); border-color:var(--oos); color:#fff; animation:pulse 1s infinite; }
   .mic-btn:disabled{ opacity:0.35; cursor:not-allowed; }
@@ -175,6 +179,11 @@
     </div>
   </div>
 
+  <div class="view-toggle">
+    <button data-mode="checklist" onclick="setViewMode('checklist')">Checklist</button>
+    <button data-mode="freeform" onclick="setViewMode('freeform')">Freeform</button>
+  </div>
+
   <div class="vinfo">
     <button class="vinfo-toggle" onclick="toggleVinfo()">Vehicle &amp; Driver Info <span class="chev" id="vinfoChev">▾</span></button>
     <div class="vinfo-body" id="vinfoBody">
@@ -200,6 +209,7 @@
 
 <main>
   <div class="panel" id="panel"></div>
+  <div class="panel" id="freeformPanel" style="display:none;"></div>
 
   <div class="cert-section">
     <h2>Inspector Certification</h2>
@@ -487,6 +497,13 @@ const state = {};
 GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', photos:[], permitNumber:''})); });
 let activeGroup = GROUPS[0].key;
 let pendingCapture = null;
+let freeformFindings = [];
+let viewMode = 'checklist';
+
+function setViewMode(mode){
+  viewMode = mode;
+  renderAll();
+}
 
 /* ---------------- Tabs ---------------- */
 function renderTabs(){
@@ -602,9 +619,99 @@ function renderPanel(){
       });
     });
     const addPhotoBtn = wrap.querySelector('[data-role="addphoto"]');
-    if(addPhotoBtn){ addPhotoBtn.addEventListener('click', ()=>{ pendingCapture = {groupKey:group.key, idx:i, role:st.status}; openCameraCapture(); }); }
+    if(addPhotoBtn){ addPhotoBtn.addEventListener('click', ()=>{ pendingCapture = {type:'grouped', groupKey:group.key, idx:i, role:st.status}; openCameraCapture(); }); }
     const clearBtn = wrap.querySelector('[data-role="clearfinding"]');
     if(clearBtn){ clearBtn.addEventListener('click', ()=>{ st.status=null; st.photos=[]; renderAll(); }); }
+
+    panel.appendChild(wrap);
+  });
+}
+
+/* ---------------- Freeform Findings List ---------------- */
+function addFreeformFinding(){
+  freeformFindings.push({text:'', status:null, photos:[]});
+  renderAll();
+}
+
+function renderFreeformPanel(){
+  const panel = document.getElementById('freeformPanel');
+  panel.innerHTML = '';
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'primary-btn';
+  addBtn.style.cssText = 'margin:6px 0 14px; display:inline-block;';
+  addBtn.textContent = '+ Add Finding';
+  addBtn.onclick = addFreeformFinding;
+  panel.appendChild(addBtn);
+
+  if(freeformFindings.length === 0){
+    const empty = document.createElement('p');
+    empty.style.cssText = 'color:var(--muted); font-size:13px; text-align:center; margin-top:24px;';
+    empty.textContent = 'No findings added yet. Tap "+ Add Finding" to record one.';
+    panel.appendChild(empty);
+    return;
+  }
+
+  freeformFindings.forEach((f,i)=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'item';
+    const code = `FF-${String(i+1).padStart(2,'0')}`;
+    const tagHtml = f.status ? `<span class="status-tag ${f.status}">${labelFor(f.status)} selected</span>` : '';
+
+    let photoHtml = '';
+    if(f.status){
+      const thumbs = (f.photos||[]).map((src,pi)=>`
+        <div class="photo-thumb-wrap">
+          <img class="photo-thumb" data-role="thumb" data-idx="${pi}" src="${src}">
+          <button class="photo-remove" data-role="removephoto" data-idx="${pi}" title="Remove photo">×</button>
+        </div>`).join('');
+      photoHtml = `<div class="photo-row">
+        ${thumbs}
+        <div class="photo-actions"><button data-role="addphoto">${f.photos && f.photos.length ? '+ Add Photo' : '+ Add Photo (optional)'}</button></div>
+      </div>`;
+    }
+
+    wrap.innerHTML = `
+      <div class="item-top">
+        <span class="item-code">${code}</span>
+        ${tagHtml}
+      </div>
+      <div class="note-input-row" style="margin-top:10px;">
+        <textarea class="finding-textarea" data-role="findingtext" placeholder="Describe the finding, or use the mic to dictate...">${f.text||''}</textarea>
+        <button class="mic-btn" data-role="mic" title="Dictate finding">🎤</button>
+      </div>
+      <div class="btn-row">
+        <button class="vbtn oos ${f.status==='oos'?'on':''}" data-role="oos">Out of Service</button>
+        <button class="vbtn nonoos ${f.status==='nonoos'?'on':''}" data-role="nonoos">Non-Out of Service</button>
+        <button class="vbtn pm ${f.status==='pm'?'on':''}" data-role="pm">Preventative Maint.</button>
+      </div>
+      ${photoHtml}
+      <button data-role="removefinding" style="margin-top:10px; background:none; border:none; color:var(--oos); font-size:11.5px; font-weight:600; cursor:pointer; padding:0;">Remove this finding</button>
+    `;
+
+    const textarea = wrap.querySelector('[data-role="findingtext"]');
+    textarea.addEventListener('input', e=>{ f.text = e.target.value; });
+    const micBtn = wrap.querySelector('[data-role="mic"]');
+    setupMicButton(micBtn, textarea, f);
+
+    wrap.querySelectorAll('.vbtn').forEach(btn=>{
+      btn.addEventListener('click', ()=> handleFreeformStatusClick(i, btn.getAttribute('data-role')));
+    });
+    wrap.querySelectorAll('[data-role="thumb"]').forEach(thumb=>{
+      thumb.addEventListener('click', ()=> openLightbox(f.photos[Number(thumb.getAttribute('data-idx'))]));
+    });
+    wrap.querySelectorAll('[data-role="removephoto"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = Number(btn.getAttribute('data-idx'));
+        f.photos.splice(idx,1);
+        if(f.photos.length===0){ f.status = null; }
+        renderAll();
+      });
+    });
+    const addPhotoBtn = wrap.querySelector('[data-role="addphoto"]');
+    if(addPhotoBtn){ addPhotoBtn.addEventListener('click', ()=>{ pendingCapture = {type:'freeform', idx:i, role:f.status}; openCameraCapture(); }); }
+    const removeBtn = wrap.querySelector('[data-role="removefinding"]');
+    removeBtn.addEventListener('click', ()=>{ freeformFindings.splice(i,1); renderAll(); });
 
     panel.appendChild(wrap);
   });
@@ -621,8 +728,17 @@ function handleStatusClick(groupKey, idx, role){
   if(st.photos && st.photos.length>0){
     st.status = role; renderAll(); return;
   }
-  pendingCapture = {groupKey, idx, role};
+  pendingCapture = {type:'grouped', groupKey, idx, role};
   openCameraCapture();
+}
+
+function handleFreeformStatusClick(idx, role){
+  const f = freeformFindings[idx];
+  if(f.status === role){
+    f.status = null; renderAll(); return;
+  }
+  f.status = role;
+  renderAll();
 }
 
 /* ---------------- Live camera capture ---------------- */
@@ -672,6 +788,18 @@ function switchCamera(){
   openCameraCapture();
 }
 
+function applyCapturedPhoto(dataUrl){
+  if(!pendingCapture) return;
+  const {type, groupKey, idx, role} = pendingCapture;
+  if(type === 'freeform'){
+    freeformFindings[idx].status = role;
+    freeformFindings[idx].photos.push(dataUrl);
+  } else {
+    state[groupKey][idx].status = role;
+    state[groupKey][idx].photos.push(dataUrl);
+  }
+}
+
 function takePhotoShot(){
   const video = document.getElementById('cameraVideo');
   if(!video || !video.videoWidth){ return; }
@@ -685,9 +813,7 @@ function takePhotoShot(){
   const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
   stopCameraStream();
   if(pendingCapture){
-    const {groupKey, idx, role} = pendingCapture;
-    state[groupKey][idx].status = role;
-    state[groupKey][idx].photos.push(dataUrl);
+    applyCapturedPhoto(dataUrl);
     finishPhotoCaptured();
   }
 }
@@ -722,9 +848,7 @@ cameraInput.addEventListener('change', e=>{
   const reader = new FileReader();
   reader.onload = ev=>{
     compressImage(ev.target.result, dataUrl=>{
-      const {groupKey, idx, role} = pendingCapture;
-      state[groupKey][idx].status = role;
-      state[groupKey][idx].photos.push(dataUrl);
+      applyCapturedPhoto(dataUrl);
       finishPhotoCaptured();
     });
   };
@@ -847,6 +971,11 @@ function renderProgress(){
       if(it.status==='compliant') compliant++;
     });
   });
+  freeformFindings.forEach(f=>{
+    if(f.status==='oos') oos++;
+    if(f.status==='nonoos') nonoos++;
+    if(f.status==='pm') pm++;
+  });
   const pct = total ? Math.round((done/total)*100) : 0;
   document.getElementById('progressFill').style.width = pct+'%';
   document.getElementById('progressText').textContent = `${done} / ${total} items assessed`;
@@ -859,9 +988,31 @@ function renderProgress(){
 
 function renderAll(){
   if(recognizingTextarea){ stopActiveRecognition(); }
-  renderTabs();
-  renderPanel();
+
+  const tabsBar = document.querySelector('.tabs-bar');
+  const progressWrap = document.querySelector('.progress-wrap');
+  const checklistPanel = document.getElementById('panel');
+  const freeformPanel = document.getElementById('freeformPanel');
+
+  if(viewMode === 'checklist'){
+    tabsBar.style.display = '';
+    progressWrap.style.display = '';
+    checklistPanel.style.display = '';
+    freeformPanel.style.display = 'none';
+    renderTabs();
+    renderPanel();
+  } else {
+    tabsBar.style.display = 'none';
+    progressWrap.style.display = 'none';
+    checklistPanel.style.display = 'none';
+    freeformPanel.style.display = '';
+    renderFreeformPanel();
+  }
   renderProgress();
+
+  document.querySelectorAll('.view-toggle button').forEach(btn=>{
+    btn.classList.toggle('active', btn.getAttribute('data-mode')===viewMode);
+  });
 }
 
 function toggleVinfo(){
@@ -929,6 +1080,11 @@ function collectFlagged(){
         flagged.push({code:`${g.code}-${String(i+1).padStart(2,'0')}`, title:item[0], status:st.status, note, photos:st.photos||[], group:g.label});
       }
     });
+  });
+  freeformFindings.forEach((f,i)=>{
+    if(f.status){
+      flagged.push({code:`FF-${String(i+1).padStart(2,'0')}`, title:`Field Finding ${i+1}`, status:f.status, note:f.text, photos:f.photos||[], group:'Field Findings'});
+    }
   });
   return flagged;
 }
@@ -1602,6 +1758,8 @@ function startNewReport(){
   GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', photos:[], permitNumber:''})); });
   activeGroup = GROUPS[0].key;
   pendingCapture = null;
+  freeformFindings = [];
+  viewMode = 'checklist';
 
   ['f-unit','f-trailer','f-driver','f-carrier','f-location','f-odometer','f-inspector','f-title'].forEach(id=>{
     const el = document.getElementById(id);
