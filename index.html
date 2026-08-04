@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
     --ink:#14181C; --panel:#1D2329; --panel-2:#242B32; --line:#333C45;
@@ -101,12 +102,7 @@
   .cert-section{ max-width:960px; margin:22px auto 0; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px 16px; }
   .cert-section h2{ font-size:15px; color:var(--paper); margin-bottom:4px; }
   .cert-section .cert-sub{ font-size:11.5px; color:var(--muted); margin-bottom:14px; }
-  .cert-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:14px; }
-  .sig-wrap{ background:#fff; border-radius:8px; overflow:hidden; border:2px solid var(--line); touch-action:none; }
-  #sigCanvas{ display:block; width:100%; height:150px; touch-action:none; }
-  .sig-actions{ display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
-  .sig-actions button{ background:none; border:1px solid var(--line); color:var(--muted); border-radius:6px; padding:6px 10px; font-size:11.5px; cursor:pointer; }
-  .sig-hint{ font-size:11px; color:var(--muted); font-family:'IBM Plex Mono',monospace; }
+  .cert-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
 
   footer.bar{ position:fixed; bottom:0; left:0; right:0; background:var(--panel); border-top:2px solid var(--accent); padding:10px 16px; z-index:30; }
   .bar-inner{ max-width:960px; margin:0 auto; display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
@@ -213,15 +209,9 @@
 
   <div class="cert-section">
     <h2>Inspector Certification</h2>
-    <div class="cert-sub">Sign to certify this inspection was performed as recorded above.</div>
+    <div class="cert-sub">Printed name of the inspector who performed this inspection.</div>
     <div class="cert-grid">
       <div class="field"><label>Inspector Printed Name</label><input id="f-inspector" type="text"></div>
-      <div class="field"><label>Title / Role</label><input id="f-title" type="text" placeholder="e.g. Driver, Mechanic, Inspector"></div>
-    </div>
-    <div class="sig-wrap"><canvas id="sigCanvas"></canvas></div>
-    <div class="sig-actions">
-      <span class="sig-hint">Sign with finger, stylus, or mouse</span>
-      <button onclick="clearSignature()">Clear Signature</button>
     </div>
   </div>
 </main>
@@ -310,6 +300,20 @@
   </div>
 </div>
 
+<div class="overlay" id="photoSourceOverlay">
+  <div class="report" style="max-width:380px;">
+    <h2>Add Photo</h2>
+    <div class="sub" style="text-transform:none; font-family:'Inter',sans-serif; font-size:13px; margin-top:8px; color:#3A4048;">
+      Take a new photo, or choose an existing one from your photo library.
+    </div>
+    <div class="report-actions">
+      <button class="rbtn" onclick="closePhotoSourceChooser()">Cancel</button>
+      <button class="rbtn" onclick="choosePhotoFromLibrary()">Choose from Library</button>
+      <button class="rbtn primary" onclick="chooseTakePhoto()">Take Photo</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="morePhotosOverlay">
   <div class="report" style="max-width:400px;">
     <h2>Add Another Photo?</h2>
@@ -336,6 +340,19 @@
   </div>
 </div>
 
+<div class="overlay" id="photoGalleryOverlay">
+  <div class="report" style="max-width:720px;">
+    <h2>Inspection Photos</h2>
+    <div class="sub" style="text-transform:none; font-family:'Inter',sans-serif; font-size:13px; margin-top:8px; color:#3A4048;">
+      Press and hold each photo below, then choose "Add to Photos" or "Save to Files" to keep it before starting the next report.
+    </div>
+    <div id="photoGalleryOutput" style="margin:16px 0; max-height:60vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px;"></div>
+    <div class="report-actions">
+      <button class="rbtn close" onclick="closePhotoGalleryOverlay()">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="reportImageOverlay">
   <div class="report" style="max-width:720px;">
     <h2>Report Image</h2>
@@ -350,6 +367,7 @@
 </div>
 
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; left:-9999px;">
+<input type="file" id="libraryInput" accept="image/*" style="position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; left:-9999px;">
 
 <script>
 /* ---------------- Checklist data ---------------- */
@@ -620,7 +638,7 @@ function renderPanel(){
       });
     });
     const addPhotoBtn = wrap.querySelector('[data-role="addphoto"]');
-    if(addPhotoBtn){ addPhotoBtn.addEventListener('click', ()=>{ pendingCapture = {type:'grouped', groupKey:group.key, idx:i, role:st.status}; openCameraCapture(); }); }
+    if(addPhotoBtn){ addPhotoBtn.addEventListener('click', ()=>{ pendingCapture = {type:'grouped', groupKey:group.key, idx:i, role:st.status}; openPhotoSourceChooser(); }); }
     const clearBtn = wrap.querySelector('[data-role="clearfinding"]');
     if(clearBtn){ clearBtn.addEventListener('click', ()=>{ st.status=null; st.photos=[]; renderAll(); }); }
 
@@ -711,7 +729,7 @@ function renderFreeformPanel(){
       });
     });
     const addPhotoBtn = wrap.querySelector('[data-role="addphoto"]');
-    if(addPhotoBtn){ addPhotoBtn.addEventListener('click', ()=>{ pendingCapture = {type:'freeform', idx:i, role:f.status}; openCameraCapture(); }); }
+    if(addPhotoBtn){ addPhotoBtn.addEventListener('click', ()=>{ pendingCapture = {type:'freeform', idx:i, role:f.status}; openPhotoSourceChooser(); }); }
     const removeBtn = wrap.querySelector('[data-role="removefinding"]');
     removeBtn.addEventListener('click', ()=>{ freeformFindings.splice(i,1); renderAll(); });
 
@@ -731,7 +749,7 @@ function handleStatusClick(groupKey, idx, role){
     st.status = role; renderAll(); return;
   }
   pendingCapture = {type:'grouped', groupKey, idx, role};
-  openCameraCapture();
+  openPhotoSourceChooser();
 }
 
 function handleFreeformStatusClick(idx, role){
@@ -829,7 +847,7 @@ function finishPhotoCaptured(){
 }
 function addAnotherPhoto(){
   document.getElementById('morePhotosOverlay').classList.remove('open');
-  openCameraCapture();
+  openPhotoSourceChooser();
 }
 function finishPhotosForItem(){
   document.getElementById('morePhotosOverlay').classList.remove('open');
@@ -858,6 +876,40 @@ cameraInput.addEventListener('change', e=>{
   e.target.value = '';
 });
 cameraInput.addEventListener('cancel', ()=>{ pendingCapture = null; });
+
+/* Let the user pick between taking a new photo (live camera) or choosing an
+   existing one from their photo library, instead of always forcing the camera. */
+function openPhotoSourceChooser(){
+  document.getElementById('photoSourceOverlay').classList.add('open');
+}
+function closePhotoSourceChooser(){
+  document.getElementById('photoSourceOverlay').classList.remove('open');
+  pendingCapture = null;
+}
+function chooseTakePhoto(){
+  document.getElementById('photoSourceOverlay').classList.remove('open');
+  openCameraCapture();
+}
+function choosePhotoFromLibrary(){
+  document.getElementById('photoSourceOverlay').classList.remove('open');
+  document.getElementById('libraryInput').click();
+}
+
+const libraryInput = document.getElementById('libraryInput');
+libraryInput.addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file || !pendingCapture){ pendingCapture=null; return; }
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    compressImage(ev.target.result, dataUrl=>{
+      applyCapturedPhoto(dataUrl);
+      finishPhotoCaptured();
+    });
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+libraryInput.addEventListener('cancel', ()=>{ pendingCapture = null; });
 
 function compressImage(dataUrl, callback){
   const img = new Image();
@@ -1024,50 +1076,6 @@ function toggleVinfo(){
   chev.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
 }
 
-/* ---------------- Signature pad ---------------- */
-const sigCanvas = document.getElementById('sigCanvas');
-const sigCtx = sigCanvas.getContext('2d');
-let hasSignature = false;
-let drawing = false;
-
-function sizeCanvas(){
-  const rect = sigCanvas.getBoundingClientRect();
-  sigCanvas.width = rect.width * 2;
-  sigCanvas.height = rect.height * 2;
-  sigCtx.scale(2,2);
-  sigCtx.lineWidth = 2;
-  sigCtx.lineCap = 'round';
-  sigCtx.strokeStyle = '#14181C';
-}
-sizeCanvas();
-window.addEventListener('resize', ()=>{
-  const data = hasSignature ? sigCanvas.toDataURL() : null;
-  sizeCanvas();
-  if(data){ const img = new Image(); img.onload=()=>sigCtx.drawImage(img,0,0,sigCanvas.width/2,sigCanvas.height/2); img.src = data; }
-});
-
-function getPos(e){
-  const rect = sigCanvas.getBoundingClientRect();
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  return { x: clientX - rect.left, y: clientY - rect.top };
-}
-function startDraw(e){ drawing = true; hasSignature = true; const p = getPos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); e.preventDefault(); }
-function moveDraw(e){ if(!drawing) return; const p = getPos(e); sigCtx.lineTo(p.x,p.y); sigCtx.stroke(); e.preventDefault(); }
-function endDraw(){ drawing = false; }
-
-sigCanvas.addEventListener('mousedown', startDraw);
-sigCanvas.addEventListener('mousemove', moveDraw);
-window.addEventListener('mouseup', endDraw);
-sigCanvas.addEventListener('touchstart', startDraw, {passive:false});
-sigCanvas.addEventListener('touchmove', moveDraw, {passive:false});
-sigCanvas.addEventListener('touchend', endDraw);
-
-function clearSignature(){
-  sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height);
-  hasSignature = false;
-}
-
 /* ---------------- Report / PDF ---------------- */
 function collectFlagged(){
   const flagged = [];
@@ -1110,7 +1118,6 @@ function getVehicleInfo(){
     location: document.getElementById('f-location').value || '—',
     odometer: document.getElementById('f-odometer').value || '—',
     inspector: document.getElementById('f-inspector').value || '—',
-    title: document.getElementById('f-title').value || '—',
   };
 }
 function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1183,8 +1190,7 @@ function copyReport(){
     'FINDINGS:',
     lines.length ? lines.join('\n') : '(none recorded)',
     '',
-    `Inspector: ${v.inspector} (${v.title})`,
-    `Signed: ${hasSignature ? 'Yes' : 'Not signed'}`
+    `Inspector: ${v.inspector}`
   ].join('\n');
 
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -1281,7 +1287,7 @@ async function renderReportCanvas(){
   if(flagged.length===0){ h += 22; }
   findingBlocks.forEach(b=>{ h += b.blockH + 12; });
   h += 30;   // cert header
-  h += (hasSignature ? 92 : 34); // signature block
+  h += 34;   // inspector name line
   h += 24;   // footer
   h += margin;
 
@@ -1399,17 +1405,8 @@ async function renderReportCanvas(){
   ctx.fillText('INSPECTOR CERTIFICATION', margin, y);
   y += 22;
   ctx.font = '12.5px Arial, sans-serif';
-  ctx.fillText(`Inspector: ${v.inspector}    Title: ${v.title}`, margin, y);
-  y += 10;
-  if(hasSignature){
-    ctx.drawImage(sigCanvas, margin, y, 200, 70);
-    y += 82;
-  } else {
-    ctx.font = '12px Arial, sans-serif';
-    ctx.fillStyle = '#5A6270';
-    ctx.fillText('(no signature captured)', margin, y+16);
-    y += 30;
-  }
+  ctx.fillText(`Inspector: ${v.inspector}`, margin, y);
+  y += 20;
   ctx.font = '10px Arial, sans-serif';
   ctx.fillStyle = '#8A94A0';
   ctx.fillText(`Generated ${new Date().toLocaleString()}`, margin, y+6);
@@ -1530,23 +1527,13 @@ function downloadPDF(){
   });
 
   y += 10;
-  if(y + 140 > pageH - margin){ doc.addPage(); y = margin; }
+  if(y + 60 > pageH - margin){ doc.addPage(); y = margin; }
   doc.setFont('helvetica','bold'); doc.setFontSize(12);
   doc.text('Inspector Certification', margin, y); y += 16;
   doc.setFont('helvetica','normal'); doc.setFontSize(10);
-  doc.text(`Inspector: ${v.inspector}    Title: ${v.title}`, margin, y); y += 8;
-
-  if(hasSignature){
-    try{
-      const sigData = sigCanvas.toDataURL('image/png');
-      doc.addImage(sigData, 'PNG', margin, y+4, 200, 60);
-    }catch(e){}
-  } else {
-    doc.text('(no signature captured)', margin, y+20);
-  }
-  y += 74;
+  doc.text(`Inspector: ${v.inspector}`, margin, y); y += 20;
   doc.setFontSize(9);
-  doc.text(`Signed / generated: ${new Date().toLocaleString()}`, margin, y);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y);
 
   const filename = `pretrip-inspection-${v.unit !== '—' ? v.unit : 'unit'}-${v.date !== '—' ? v.date : 'report'}.pdf`;
   doc.save(filename);
@@ -1555,14 +1542,48 @@ function downloadPDF(){
 /* ---------------- Audit Report (session-based log, filterable, import/export) ---------------- */
 let auditLog = [];
 
-/* ---------------- Google Sheet submission ---------------- */
+/* ---------------- Google Sheet submission (text + Drive-linked photos) ---------------- */
 const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw8F5mFIhSi9WJ336gfj7OfKSNYQIPFXMwDNfc0HBwTGIShkkr7a9a8n7qZQ2cf6pdfiw/exec';
+const PHOTO_CHUNK_SIZE = 6000;
 let pendingSheetSubmissions = [];
 
-async function submitToGoogleSheet(record){
+async function sheetGet(params){
+  const url = SHEET_API_URL + '?' + params;
+  await fetch(url, { method: 'GET', mode: 'no-cors', keepalive: true });
+}
+
+async function uploadPhotoChunks(inspectionId, photoIndex, dataUrl){
+  const base64 = (dataUrl.split(',')[1]) || '';
+  const chunks = [];
+  for(let i=0;i<base64.length;i+=PHOTO_CHUNK_SIZE){
+    chunks.push(base64.slice(i, i+PHOTO_CHUNK_SIZE));
+  }
+  const total = chunks.length || 1;
+  const filename = `photo_${photoIndex+1}.jpg`;
+  for(let i=0;i<chunks.length;i++){
+    const params = 'action=photochunk'
+      + '&inspectionId=' + encodeURIComponent(inspectionId)
+      + '&photoIndex=' + photoIndex
+      + '&chunkIndex=' + i
+      + '&total=' + total
+      + '&filename=' + encodeURIComponent(filename)
+      + '&data=' + encodeURIComponent(chunks[i]);
+    await sheetGet(params);
+  }
+}
+
+async function performFullSheetSubmission(record, photos){
   try{
-    const url = SHEET_API_URL + '?data=' + encodeURIComponent(JSON.stringify(record));
-    await fetch(url, { method: 'GET', mode: 'no-cors', keepalive: true });
+    const inspectionId = Date.now() + '-' + Math.random().toString(36).slice(2,8);
+
+    await sheetGet('action=inspection&inspectionId=' + encodeURIComponent(inspectionId) + '&data=' + encodeURIComponent(JSON.stringify(record)));
+
+    for(let i=0;i<photos.length;i++){
+      await uploadPhotoChunks(inspectionId, i, photos[i]);
+    }
+
+    await sheetGet('action=finalize&inspectionId=' + encodeURIComponent(inspectionId) + '&photoCount=' + photos.length);
+
     return true;
   }catch(err){
     return false;
@@ -1572,17 +1593,17 @@ async function submitToGoogleSheet(record){
 async function flushPendingSheetSubmissions(){
   if(pendingSheetSubmissions.length===0) return;
   const remaining = [];
-  for(const rec of pendingSheetSubmissions){
-    const ok = await submitToGoogleSheet(rec);
-    if(!ok){ remaining.push(rec); }
+  for(const item of pendingSheetSubmissions){
+    const ok = await performFullSheetSubmission(item.record, item.photos);
+    if(!ok){ remaining.push(item); }
   }
   pendingSheetSubmissions = remaining;
 }
 
-async function submitInspectionToSheet(record){
+async function submitInspectionToSheet(record, photos){
   await flushPendingSheetSubmissions();
-  const ok = await submitToGoogleSheet(record);
-  if(!ok){ pendingSheetSubmissions.push(record); }
+  const ok = await performFullSheetSubmission(record, photos);
+  if(!ok){ pendingSheetSubmissions.push({record, photos}); }
 }
 
 function logInspectionToAudit(){
@@ -1593,16 +1614,20 @@ function logInspectionToAudit(){
   const hasAnything = v.unit !== '—' || v.driver !== '—' || flagged.length>0 || compliantCount>0;
   if(!hasAnything) return;
 
+  const findingsForRecord = flagged.map(f=>({code:f.code, title:f.title, status:f.status, note:f.note, group:f.group}));
+  const allPhotos = [];
+  flagged.forEach(f=>{ (f.photos||[]).forEach(src=>{ if(src) allPhotos.push(src); }); });
+
   const record = {
     id: Date.now() + '-' + Math.random().toString(36).slice(2,8),
     date: v.date, unit: v.unit, trailer: v.trailer, driver: v.driver, carrier: v.carrier,
-    location: v.location, odometer: v.odometer, inspector: v.inspector, title: v.title,
+    location: v.location, odometer: v.odometer, inspector: v.inspector,
     compliant: compliantCount, oos, nonoos, pm,
-    findings: flagged.map(f=>({code:f.code, title:f.title, status:f.status, note:f.note, group:f.group}))
+    findings: findingsForRecord
   };
 
   auditLog.push(record);
-  submitInspectionToSheet(record);
+  submitInspectionToSheet(record, allPhotos);
 }
 
 function populateInspectorFilter(){
@@ -1728,10 +1753,10 @@ function importAuditLogFile(e){
 function exportAuditCSV(){
   const rows = filterAuditLog();
   if(rows.length===0){ alert('No inspections match the current filters.'); return; }
-  const header = ['Date','Unit','Trailer','Driver','Carrier/DOT','Location','Odometer','Inspector','Title','Compliant','Out of Service','Non-Out of Service','Preventative Maintenance'];
+  const header = ['Date','Unit','Trailer','Driver','Carrier/DOT','Location','Odometer','Inspector','Compliant','Out of Service','Non-Out of Service','Preventative Maintenance'];
   const lines = [header.join(',')];
   rows.forEach(r=>{
-    const vals = [r.date,r.unit,r.trailer,r.driver,r.carrier,r.location,r.odometer,r.inspector,r.title,r.compliant,r.oos,r.nonoos,r.pm];
+    const vals = [r.date,r.unit,r.trailer,r.driver,r.carrier,r.location,r.odometer,r.inspector,r.compliant,r.oos,r.nonoos,r.pm];
     lines.push(vals.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(','));
   });
   const blob = new Blob([lines.join('\n')], {type:'text/csv'});
@@ -1754,6 +1779,7 @@ function startNewReport(){
   closeNewReportConfirm();
 
   logInspectionToAudit();
+  const capturedPhotos = collectAllPhotosForDownload();
 
   if(recognizingTextarea){ stopActiveRecognition(); }
 
@@ -1764,13 +1790,11 @@ function startNewReport(){
   freeformSeqCounter = 0;
   viewMode = 'checklist';
 
-  ['f-unit','f-trailer','f-driver','f-carrier','f-location','f-odometer','f-inspector','f-title'].forEach(id=>{
+  ['f-unit','f-trailer','f-driver','f-carrier','f-location','f-odometer','f-inspector'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
   document.getElementById('f-date').valueAsDate = new Date();
-
-  clearSignature();
 
   closeReport();
   closeReportImageOverlay();
@@ -1782,6 +1806,80 @@ function startNewReport(){
   vinfoChev.textContent = '▾';
 
   renderAll();
+
+  if(capturedPhotos.length > 0){
+    offerInspectionPhotosForDownload(capturedPhotos);
+  }
+}
+
+/* ---------------- Photo download on New Report ---------------- */
+function collectAllPhotosForDownload(){
+  const photos = [];
+  GROUPS.forEach(g=>{
+    g.items.forEach((item,i)=>{
+      const st = state[g.key][i];
+      if(st.photos && st.photos.length){
+        const code = `${g.code}-${String(i+1).padStart(2,'0')}`;
+        const safeTitle = item[0].replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,40);
+        st.photos.forEach((src,pi)=>{
+          photos.push({filename:`${code}_${safeTitle}_${pi+1}.jpg`, src});
+        });
+      }
+    });
+  });
+  freeformFindings.forEach(f=>{
+    if(f.photos && f.photos.length){
+      f.photos.forEach((src,pi)=>{
+        photos.push({filename:`FF-${String(f.seq).padStart(2,'0')}_${pi+1}.jpg`, src});
+      });
+    }
+  });
+  return photos;
+}
+
+async function offerInspectionPhotosForDownload(photos){
+  if(isIOSDevice()){
+    showPhotoSaveGallery(photos);
+  } else {
+    await downloadPhotosAsZip(photos);
+  }
+}
+
+function showPhotoSaveGallery(photos){
+  const container = document.getElementById('photoGalleryOutput');
+  container.innerHTML = photos.map(p=>`<img src="${p.src}" style="width:100%; display:block; border-radius:8px;">`).join('');
+  document.getElementById('photoGalleryOverlay').classList.add('open');
+}
+function closePhotoGalleryOverlay(){
+  document.getElementById('photoGalleryOverlay').classList.remove('open');
+}
+
+async function downloadPhotosAsZip(photos){
+  if(!window.JSZip){
+    photos.forEach((p,idx)=>{
+      setTimeout(()=>{
+        const a = document.createElement('a');
+        a.href = p.src; a.download = p.filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      }, idx*350);
+    });
+    return;
+  }
+  try{
+    const zip = new JSZip();
+    photos.forEach(p=>{
+      const base64 = p.src.split(',')[1];
+      zip.file(p.filename, base64, {base64:true});
+    });
+    const blob = await zip.generateAsync({type:'blob'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `inspection-photos-${new Date().toISOString().slice(0,10)}.zip`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 30000);
+  }catch(err){
+    alert('Could not bundle the photos for download. Please try again.');
+  }
 }
 
 /* ---------------- Init ---------------- */
