@@ -498,6 +498,7 @@ GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', p
 let activeGroup = GROUPS[0].key;
 let pendingCapture = null;
 let freeformFindings = [];
+let freeformSeqCounter = 0;
 let viewMode = 'checklist';
 
 function setViewMode(mode){
@@ -629,7 +630,8 @@ function renderPanel(){
 
 /* ---------------- Freeform Findings List ---------------- */
 function addFreeformFinding(){
-  freeformFindings.push({text:'', status:null, photos:[]});
+  freeformSeqCounter++;
+  freeformFindings.unshift({text:'', status:null, photos:[], seq:freeformSeqCounter});
   renderAll();
 }
 
@@ -655,7 +657,7 @@ function renderFreeformPanel(){
   freeformFindings.forEach((f,i)=>{
     const wrap = document.createElement('div');
     wrap.className = 'item';
-    const code = `FF-${String(i+1).padStart(2,'0')}`;
+    const code = `FF-${String(f.seq).padStart(2,'0')}`;
     const tagHtml = f.status ? `<span class="status-tag ${f.status}">${labelFor(f.status)} selected</span>` : '';
 
     let photoHtml = '';
@@ -1083,7 +1085,7 @@ function collectFlagged(){
   });
   freeformFindings.forEach((f,i)=>{
     if(f.status){
-      flagged.push({code:`FF-${String(i+1).padStart(2,'0')}`, title:`Field Finding ${i+1}`, status:f.status, note:f.text, photos:f.photos||[], group:'Field Findings'});
+      flagged.push({code:`FF-${String(f.seq).padStart(2,'0')}`, title:`Field Finding ${f.seq}`, status:f.status, note:f.text, photos:f.photos||[], group:'Field Findings'});
     }
   });
   return flagged;
@@ -1759,6 +1761,7 @@ function startNewReport(){
   activeGroup = GROUPS[0].key;
   pendingCapture = null;
   freeformFindings = [];
+  freeformSeqCounter = 0;
   viewMode = 'checklist';
 
   ['f-unit','f-trailer','f-driver','f-carrier','f-location','f-odometer','f-inspector','f-title'].forEach(id=>{
