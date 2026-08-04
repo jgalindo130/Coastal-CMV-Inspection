@@ -1576,13 +1576,11 @@ async function performFullSheetSubmission(record, photos){
   try{
     const inspectionId = Date.now() + '-' + Math.random().toString(36).slice(2,8);
 
-    await sheetGet('action=inspection&inspectionId=' + encodeURIComponent(inspectionId) + '&data=' + encodeURIComponent(JSON.stringify(record)));
+    await sheetGet('action=inspection&inspectionId=' + encodeURIComponent(inspectionId) + '&photoCount=' + photos.length + '&data=' + encodeURIComponent(JSON.stringify(record)));
 
     for(let i=0;i<photos.length;i++){
       await uploadPhotoChunks(inspectionId, i, photos[i]);
     }
-
-    await sheetGet('action=finalize&inspectionId=' + encodeURIComponent(inspectionId) + '&photoCount=' + photos.length);
 
     return true;
   }catch(err){
