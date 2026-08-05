@@ -1542,56 +1542,16 @@ function downloadPDF(){
 /* ---------------- Audit Report (session-based log, filterable, import/export) ---------------- */
 let auditLog = [];
 
-/* ---------------- Google Sheet submission (text + Drive-linked photos) ---------------- */
+/* ---------------- Google Sheet submission (text/findings only) ---------------- */
 const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw8F5mFIhSi9WJ336gfj7OfKSNYQIPFXMwDNfc0HBwTGIShkkr7a9a8n7qZQ2cf6pdfiw/exec';
-const PHOTO_CHUNK_SIZE = 6000;
 let pendingSheetSubmissions = [];
 
-async function sheetGet(params){
-  const url = SHEET_API_URL + '?' + params;
-  await fetch(url, { method: 'GET', mode: 'no-cors', keepalive: true });
-}
-
-async function uploadPhotoChunks(inspectionId, photoIndex, dataUrl){
-  const base64 = (dataUrl.split(',')[1]) || '';
-  const chunks = [];
-  for(let i=0;i<base64.length;i+=PHOTO_CHUNK_SIZE){
-    chunks.push(base64.slice(i, i+PHOTO_CHUNK_SIZE));
-  }
-  const total = chunks.length || 1;
-  const filename = `photo_${photoIndex+1}.jpg`;
-  for(let i=0;i<chunks.length;i++){
-    const params = 'action=photochunk'
-      + '&inspectionId=' + encodeURIComponent(inspectionId)
-      + '&photoIndex=' + photoIndex
-      + '&chunkIndex=' + i
-      + '&total=' + total
-      + '&filename=' + encodeURIComponent(filename)
-      + '&data=' + encodeURIComponent(chunks[i]);
-    await sheetGet(params);
-  }
-}
-
-async function performFullSheetSubmission(record, photos){
+async function submitToGoogleSheet(record){
   try{
-    const inspectionId = Date.now() + '-' + Math.random().toString(36).slice(2,8);
-
-    alert('DEBUG: starting submission. Photos to upload: ' + photos.length);
-
-    await sheetGet('action=inspection&inspectionId=' + encodeURIComponent(inspectionId) + '&photoCount=' + photos.length + '&data=' + encodeURIComponent(JSON.stringify(record)));
-
-    alert('DEBUG: inspection info sent OK. Now uploading photos...');
-
-    for(let i=0;i<photos.length;i++){
-      alert('DEBUG: uploading photo ' + (i+1) + ' of ' + photos.length + ' (length: ' + (photos[i] ? photos[i].length : 'MISSING') + ' chars)');
-      await uploadPhotoChunks(inspectionId, i, photos[i]);
-      alert('DEBUG: photo ' + (i+1) + ' upload finished.');
-    }
-
-    alert('DEBUG: submission fully complete.');
+    const url = SHEET_API_URL + '?data=' + encodeURIComponent(JSON.stringify(record));
+    await fetch(url, { method: 'GET', mode: 'no-cors', keepalive: true });
     return true;
   }catch(err){
-    alert('DEBUG: submission FAILED with error: ' + (err && err.message ? err.message : err));
     return false;
   }
 }
@@ -1599,17 +1559,17 @@ async function performFullSheetSubmission(record, photos){
 async function flushPendingSheetSubmissions(){
   if(pendingSheetSubmissions.length===0) return;
   const remaining = [];
-  for(const item of pendingSheetSubmissions){
-    const ok = await performFullSheetSubmission(item.record, item.photos);
-    if(!ok){ remaining.push(item); }
+  for(const rec of pendingSheetSubmissions){
+    const ok = await submitToGoogleSheet(rec);
+    if(!ok){ remaining.push(rec); }
   }
   pendingSheetSubmissions = remaining;
 }
 
-async function submitInspectionToSheet(record, photos){
+async function submitInspectionToSheet(record){
   await flushPendingSheetSubmissions();
-  const ok = await performFullSheetSubmission(record, photos);
-  if(!ok){ pendingSheetSubmissions.push({record, photos}); }
+  const ok = await submitToGoogleSheet(record);
+  if(!ok){ pendingSheetSubmissions.push(record); }
 }
 
 function logInspectionToAudit(){
@@ -1620,20 +1580,16 @@ function logInspectionToAudit(){
   const hasAnything = v.unit !== '—' || v.driver !== '—' || flagged.length>0 || compliantCount>0;
   if(!hasAnything) return;
 
-  const findingsForRecord = flagged.map(f=>({code:f.code, title:f.title, status:f.status, note:f.note, group:f.group}));
-  const allPhotos = [];
-  flagged.forEach(f=>{ (f.photos||[]).forEach(src=>{ if(src) allPhotos.push(src); }); });
-
   const record = {
     id: Date.now() + '-' + Math.random().toString(36).slice(2,8),
     date: v.date, unit: v.unit, trailer: v.trailer, driver: v.driver, carrier: v.carrier,
     location: v.location, odometer: v.odometer, inspector: v.inspector,
     compliant: compliantCount, oos, nonoos, pm,
-    findings: findingsForRecord
+    findings: flagged.map(f=>({code:f.code, title:f.title, status:f.status, note:f.note, group:f.group}))
   };
 
   auditLog.push(record);
-  submitInspectionToSheet(record, allPhotos);
+  submitInspectionToSheet(record);
 }
 
 function populateInspectorFilter(){
