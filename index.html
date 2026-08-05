@@ -143,8 +143,8 @@
 
   .camera-overlay{ position:fixed; inset:0; background:#000; z-index:80; display:none; flex-direction:column; }
   .camera-overlay.open{ display:flex; }
-  .camera-video-wrap{ flex:1; position:relative; overflow:hidden; background:#000; }
-  #cameraVideo{ width:100%; height:100%; object-fit:cover; display:block; }
+  .camera-video-wrap{ flex:1; position:relative; overflow:hidden; background:#000; touch-action:none; }
+  #cameraVideo{ width:100%; height:100%; object-fit:cover; display:block; touch-action:none; }
   .camera-hint{ position:absolute; top:16px; left:0; right:0; text-align:center; color:#fff; font-family:'IBM Plex Mono',monospace; font-size:12px; text-shadow:0 1px 3px rgba(0,0,0,.6); pointer-events:none; }
   .camera-controls{ display:flex; align-items:center; justify-content:space-between; padding:20px 28px calc(24px + env(safe-area-inset-bottom)); background:#000; }
   .cam-btn{ background:none; border:none; color:#fff; font-family:'Oswald',sans-serif; font-size:13px; text-transform:uppercase; letter-spacing:0.04em; cursor:pointer; padding:8px; }
@@ -814,6 +814,47 @@ let currentFacingMode = 'environment';
 let currentTrack = null;
 let imageCapture = null;
 let torchOn = false;
+let zoomCapability = null;
+let currentZoom = 1;
+let pinchStartDistance = null;
+let pinchStartZoom = 1;
+
+function getTouchDistance(touches){
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+async function applyZoom(value){
+  if(!currentTrack) return;
+  const clamped = Math.min(zoomCapability.max, Math.max(zoomCapability.min, value));
+  try{
+    await currentTrack.applyConstraints({ advanced: [{ zoom: clamped }] });
+    currentZoom = clamped;
+  }catch(e){ /* zoom control not supported on this device — ignore */ }
+}
+
+function setupPinchZoom(video){
+  video.addEventListener('touchstart', e=>{
+    if(e.touches.length === 2 && zoomCapability){
+      pinchStartDistance = getTouchDistance(e.touches);
+      pinchStartZoom = currentZoom;
+    }
+  }, {passive:true});
+
+  video.addEventListener('touchmove', e=>{
+    if(e.touches.length === 2 && zoomCapability && pinchStartDistance){
+      e.preventDefault();
+      const newDistance = getTouchDistance(e.touches);
+      const scaleFactor = newDistance / pinchStartDistance;
+      applyZoom(pinchStartZoom * scaleFactor);
+    }
+  }, {passive:false});
+
+  video.addEventListener('touchend', e=>{
+    if(e.touches.length < 2){ pinchStartDistance = null; }
+  });
+}
 
 async function openCameraCapture(){
   const overlay = document.getElementById('cameraOverlay');
@@ -830,10 +871,14 @@ async function openCameraCapture(){
   const shutterBtn = document.getElementById('shutterBtn');
   const torchBtn = document.getElementById('torchBtn');
   torchOn = false;
+  zoomCapability = null;
+  currentZoom = 1;
+  pinchStartDistance = null;
   if(shutterBtn){ shutterBtn.disabled = true; }
   if(torchBtn){ torchBtn.style.display = 'none'; torchBtn.style.opacity = '0.55'; }
 
   freshVideo.addEventListener('click', e=> focusAtPoint(e.clientX, e.clientY));
+  setupPinchZoom(freshVideo);
 
   try{
     cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -858,6 +903,10 @@ async function openCameraCapture(){
       try{
         const caps = currentTrack.getCapabilities();
         if(caps && caps.torch && torchBtn){ torchBtn.style.display = ''; }
+        if(caps && caps.zoom){
+          zoomCapability = { min: caps.zoom.min, max: caps.zoom.max };
+          currentZoom = (caps.zoom.min !== undefined) ? Math.max(1, caps.zoom.min) : 1;
+        }
       }catch(e){}
     }
 
@@ -881,6 +930,9 @@ function stopCameraStream(){
   currentTrack = null;
   imageCapture = null;
   torchOn = false;
+  zoomCapability = null;
+  currentZoom = 1;
+  pinchStartDistance = null;
   document.getElementById('cameraOverlay').classList.remove('open');
 }
 
