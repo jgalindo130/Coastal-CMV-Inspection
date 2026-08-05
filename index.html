@@ -38,8 +38,8 @@
   .vinfo-body{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; padding:0 14px 14px; }
   .vinfo-body.collapsed{ display:none; }
   .field label{ display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:4px; }
-  .field input{ width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:9px 10px; font-size:14px; font-family:'IBM Plex Mono',monospace; }
-  .field input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .field input, .field select{ width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:9px 10px; font-size:14px; font-family:'IBM Plex Mono',monospace; }
+  .field input:focus, .field select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
 
   .progress-wrap{ max-width:960px; margin:14px auto 0; padding:0 16px; }
   .progress-track{ height:6px; border-radius:4px; background:var(--panel-2); overflow:hidden; }
@@ -172,9 +172,11 @@
       <button class="icon-btn" onclick="confirmNewReport()">New Report</button>
       <button class="icon-btn" onclick="openAuditReport()">Audit Report</button>
       <button class="icon-btn" onclick="openReport()">Summary</button>
+      <button class="icon-btn" onclick="saveDraft()">Save Draft</button>
+      <button class="icon-btn" onclick="document.getElementById('draftInput').click()">Load Draft</button>
     </div>
   </div>
-
+  <input type="file" id="draftInput" accept="application/json" style="display:none" onchange="loadDraftFile(event)">
   <div class="view-toggle">
     <button data-mode="checklist" onclick="setViewMode('checklist')">Checklist</button>
     <button data-mode="freeform" onclick="setViewMode('freeform')">Freeform</button>
@@ -185,6 +187,22 @@
     <div class="vinfo-body" id="vinfoBody">
       <div class="field"><label>Unit / Truck #</label><input id="f-unit" type="text" placeholder="e.g. 4471"></div>
       <div class="field"><label>Trailer #</label><input id="f-trailer" type="text" placeholder="e.g. 8802"></div>
+      <div class="field"><label>Year</label><input id="f-year" type="text" placeholder="e.g. 2022"></div>
+      <div class="field"><label>Make</label><input id="f-make" type="text" placeholder="e.g. Freightliner"></div>
+      <div class="field"><label>Model</label><input id="f-model" type="text" placeholder="e.g. Cascadia"></div>
+      <div class="field">
+        <label>Type</label>
+        <select id="f-type">
+          <option value="">Select type…</option>
+          <option value="Truck Treater">Truck Treater</option>
+          <option value="Stake Bed">Stake Bed</option>
+          <option value="Bobtail">Bobtail</option>
+          <option value="Tanker">Tanker</option>
+          <option value="Gooseneck">Gooseneck</option>
+          <option value="Drum Trailer">Drum Trailer</option>
+          <option value="Pickup">Pickup</option>
+        </select>
+      </div>
       <div class="field"><label>Driver Name</label><input id="f-driver" type="text"></div>
       <div class="field"><label>Carrier / DOT #</label><input id="f-carrier" type="text"></div>
       <div class="field"><label>Date</label><input id="f-date" type="date"></div>
@@ -379,8 +397,10 @@ const GROUPS = [
     ["Hazmat shipping papers accurate","Match the load, accessible, properly completed"],
     ["Hours of service record current","Log up to date and available for review"],
     ["Previous inspection report reviewed","Prior DVIR checked for open/unresolved defects"],
-    ["VIK Inspections","Confirm current and on file"],
-    ["VILK Inspections","Confirm current and on file"],
+    ["VIK Inspections","Confirm current and on file — Annual interval", 12],
+    ["P Inspection","Confirm current and on file — 5 year interval", 60],
+    ["UC Upper Coupler","Confirm current and on file — 2 year interval", 24],
+    ["UN34","Confirm current and on file — 30 month interval", 30],
     ["Insurance cab card","Present in vehicle and current"],
     ["HAZMAT certificate","Valid and present in vehicle"],
     ["IFTA Tax","Current decal/credentials displayed and on file"],
@@ -512,7 +532,7 @@ const GROUPS = [
 ];
 
 const state = {};
-GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', photos:[], permitNumber:''})); });
+GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', photos:[], permitNumber:'', lastInspected:''})); });
 let activeGroup = GROUPS[0].key;
 let pendingCapture = null;
 let freeformFindings = [];
@@ -539,6 +559,14 @@ function renderTabs(){
 }
 
 /* ---------------- Items ---------------- */
+function computeNextDueDate(lastInspectedStr, intervalMonths){
+  if(!lastInspectedStr) return '—';
+  const d = new Date(lastInspectedStr + 'T00:00:00');
+  if(isNaN(d.getTime())) return '—';
+  d.setMonth(d.getMonth() + intervalMonths);
+  return d.toISOString().slice(0,10);
+}
+
 function labelFor(status){
   if(status==='compliant') return 'Compliant';
   if(status==='na') return 'N/A';
@@ -583,6 +611,17 @@ function renderPanel(){
         </div>`
       : '';
 
+    const intervalMonths = item[2];
+    const intervalHtml = intervalMonths
+      ? `<div style="margin-top:10px;">
+          <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:4px;">Date Last Inspected</label>
+          <input data-role="lastinspected" type="date" value="${st.lastInspected||''}" style="width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:9px 10px; font-size:13px; font-family:'IBM Plex Mono',monospace;">
+          <div style="margin-top:6px; font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace;">
+            Next inspection due: <span style="color:var(--paper); font-weight:600;">${computeNextDueDate(st.lastInspected, intervalMonths)}</span>
+          </div>
+        </div>`
+      : '';
+
     wrap.innerHTML = `
       <div class="item-top">
         <span class="item-code">${code}</span>
@@ -600,6 +639,7 @@ function renderPanel(){
         <button class="vbtn na ${st.status==='na'?'on':''}" data-role="na">N/A</button>
       </div>
       ${permitHtml}
+      ${intervalHtml}
       ${photoHtml}
       <button class="note-toggle" data-role="notetoggle">${st.note ? '✎ Edit note' : '+ Add note'}</button>
       <div class="note-area" data-role="notearea">
@@ -615,6 +655,8 @@ function renderPanel(){
     });
     const permitInput = wrap.querySelector('[data-role="permitnum"]');
     if(permitInput){ permitInput.addEventListener('input', e=>{ st.permitNumber = e.target.value; }); }
+    const lastInspectedInput = wrap.querySelector('[data-role="lastinspected"]');
+    if(lastInspectedInput){ lastInspectedInput.addEventListener('change', e=>{ st.lastInspected = e.target.value; renderAll(); }); }
     const noteToggle = wrap.querySelector('[data-role="notetoggle"]');
     const noteArea = wrap.querySelector('[data-role="notearea"]');
     noteToggle.addEventListener('click', ()=> noteArea.classList.toggle('open'));
@@ -1112,6 +1154,10 @@ function getVehicleInfo(){
   return {
     unit: document.getElementById('f-unit').value || '—',
     trailer: document.getElementById('f-trailer').value || '—',
+    year: document.getElementById('f-year').value || '—',
+    make: document.getElementById('f-make').value || '—',
+    model: document.getElementById('f-model').value || '—',
+    type: document.getElementById('f-type').value || '—',
     driver: document.getElementById('f-driver').value || '—',
     carrier: document.getElementById('f-carrier').value || '—',
     date: document.getElementById('f-date').value || '—',
@@ -1150,6 +1196,7 @@ function openReport(){
   content.innerHTML = `
     <h2>Inspection Report</h2>
     <div class="sub">Unit ${v.unit} · Trailer ${v.trailer} · ${v.date}</div>
+    <div class="sub">${v.year} ${v.make} ${v.model} · Type: ${v.type}</div>
     <div class="sub">Driver: ${v.driver} · Carrier/DOT: ${v.carrier} · Location: ${v.location}</div>
     ${verdictHtml}
     <div class="report-counts">
@@ -1181,6 +1228,7 @@ function copyReport(){
   const text = [
     'CMV PRE-TRIP INSPECTION REPORT',
     `Unit: ${v.unit}   Trailer: ${v.trailer}`,
+    `Year/Make/Model: ${v.year} ${v.make} ${v.model}   Type: ${v.type}`,
     `Driver: ${v.driver}   Carrier/DOT: ${v.carrier}`,
     `Date: ${v.date}   Location: ${v.location}   Odometer: ${v.odometer}`,
     '',
@@ -1280,7 +1328,7 @@ async function renderReportCanvas(){
   let h = margin;
   h += 58;   // logo
   h += 30;   // title
-  h += 34;   // info lines
+  h += 50;   // info lines
   h += 56;   // verdict banner
   h += 76;   // count boxes
   h += 24;   // findings header
@@ -1313,6 +1361,8 @@ async function renderReportCanvas(){
   ctx.font = '11.5px "Courier New", monospace';
   ctx.fillStyle = '#5A6270';
   ctx.fillText(`UNIT ${v.unit}  ·  TRAILER ${v.trailer}  ·  ${v.date}`.toUpperCase(), margin, y);
+  y += 16;
+  ctx.fillText(`${v.year} ${v.make} ${v.model}  ·  TYPE: ${v.type}`.toUpperCase(), margin, y);
   y += 16;
   ctx.fillText(`DRIVER: ${v.driver}  ·  CARRIER/DOT: ${v.carrier}  ·  LOCATION: ${v.location}  ·  ODOMETER: ${v.odometer}`.toUpperCase(), margin, y);
   y += 24;
@@ -1468,6 +1518,7 @@ function downloadPDF(){
   doc.setFont('helvetica','normal'); doc.setFontSize(10);
   const infoLines = [
     `Unit: ${v.unit}   Trailer: ${v.trailer}   Odometer: ${v.odometer}`,
+    `Year/Make/Model: ${v.year} ${v.make} ${v.model}   Type: ${v.type}`,
     `Driver: ${v.driver}   Carrier/DOT: ${v.carrier}`,
     `Date: ${v.date}   Location: ${v.location}`,
   ];
@@ -1582,7 +1633,8 @@ function logInspectionToAudit(){
 
   const record = {
     id: Date.now() + '-' + Math.random().toString(36).slice(2,8),
-    date: v.date, unit: v.unit, trailer: v.trailer, driver: v.driver, carrier: v.carrier,
+    date: v.date, unit: v.unit, trailer: v.trailer, year: v.year, make: v.make, model: v.model, type: v.type,
+    driver: v.driver, carrier: v.carrier,
     location: v.location, odometer: v.odometer, inspector: v.inspector,
     compliant: compliantCount, oos, nonoos, pm,
     findings: flagged.map(f=>({code:f.code, title:f.title, status:f.status, note:f.note, group:f.group}))
@@ -1730,6 +1782,65 @@ function exportAuditCSV(){
 }
 
 /* ---------------- New Report (reset everything) ---------------- */
+/* ---------------- Save/Load Draft (manual backup, e.g. before switching to photo library) ---------------- */
+const DRAFT_FIELD_IDS = ['f-unit','f-trailer','f-year','f-make','f-model','f-type','f-driver','f-carrier','f-date','f-location','f-odometer','f-inspector'];
+
+function buildDraftPayload(){
+  const fields = {};
+  DRAFT_FIELD_IDS.forEach(id=>{
+    const el = document.getElementById(id);
+    fields[id] = el ? el.value : '';
+  });
+  return {
+    savedAt: new Date().toISOString(),
+    fields,
+    state,
+    freeformFindings,
+    freeformSeqCounter
+  };
+}
+
+function saveDraft(){
+  const payload = buildDraftPayload();
+  const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `inspection-draft-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 30000);
+}
+
+function loadDraftFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const payload = JSON.parse(ev.target.result);
+
+      DRAFT_FIELD_IDS.forEach(id=>{
+        const el = document.getElementById(id);
+        if(el && payload.fields && payload.fields[id] !== undefined){ el.value = payload.fields[id]; }
+      });
+
+      if(payload.state){
+        Object.keys(payload.state).forEach(key=>{
+          if(state[key] !== undefined){ state[key] = payload.state[key]; }
+        });
+      }
+      if(Array.isArray(payload.freeformFindings)){ freeformFindings = payload.freeformFindings; }
+      if(payload.freeformSeqCounter){ freeformSeqCounter = payload.freeformSeqCounter; }
+
+      renderAll();
+      alert('Draft restored' + (payload.savedAt ? ' — saved ' + new Date(payload.savedAt).toLocaleString() : '') + '.');
+    }catch(err){
+      alert('Could not read that draft file — make sure it was exported from this app.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
 function confirmNewReport(){
   document.getElementById('newReportOverlay').classList.add('open');
 }
@@ -1745,14 +1856,14 @@ function startNewReport(){
 
   if(recognizingTextarea){ stopActiveRecognition(); }
 
-  GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', photos:[], permitNumber:''})); });
+  GROUPS.forEach(g => { state[g.key] = g.items.map(() => ({status:null, note:'', photos:[], permitNumber:'', lastInspected:''})); });
   activeGroup = GROUPS[0].key;
   pendingCapture = null;
   freeformFindings = [];
   freeformSeqCounter = 0;
   viewMode = 'checklist';
 
-  ['f-unit','f-trailer','f-driver','f-carrier','f-location','f-odometer','f-inspector'].forEach(id=>{
+  ['f-unit','f-trailer','f-year','f-make','f-model','f-type','f-driver','f-carrier','f-location','f-odometer','f-inspector'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
@@ -1784,26 +1895,69 @@ function collectAllPhotosForDownload(){
         const code = `${g.code}-${String(i+1).padStart(2,'0')}`;
         const safeTitle = item[0].replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,40);
         st.photos.forEach((src,pi)=>{
-          photos.push({filename:`${code}_${safeTitle}_${pi+1}.jpg`, src});
+          photos.push({filename:`${code}_${safeTitle}_${pi+1}.jpg`, src, label:code});
         });
       }
     });
   });
   freeformFindings.forEach(f=>{
     if(f.photos && f.photos.length){
+      const code = `FF-${String(f.seq).padStart(2,'0')}`;
       f.photos.forEach((src,pi)=>{
-        photos.push({filename:`FF-${String(f.seq).padStart(2,'0')}_${pi+1}.jpg`, src});
+        photos.push({filename:`${code}_${pi+1}.jpg`, src, label:code});
       });
     }
   });
   return photos;
 }
 
+function stampPhotoWithLabel(dataUrl, label){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        const barHeight = Math.max(30, Math.round(img.height * 0.09));
+        ctx.fillStyle = 'rgba(0,0,0,0.68)';
+        ctx.fillRect(0, 0, img.width, barHeight);
+
+        const fontSize = Math.round(barHeight * 0.58);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, Math.round(img.width*0.025), Math.round(barHeight/2));
+
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      }catch(e){
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = ()=> resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function stampAllPhotos(photos){
+  const stamped = [];
+  for(const p of photos){
+    const stampedSrc = await stampPhotoWithLabel(p.src, p.label);
+    stamped.push({filename:p.filename, src:stampedSrc});
+  }
+  return stamped;
+}
+
 async function offerInspectionPhotosForDownload(photos){
+  const stampedPhotos = await stampAllPhotos(photos);
   if(isIOSDevice()){
-    showPhotoSaveGallery(photos);
+    showPhotoSaveGallery(stampedPhotos);
   } else {
-    await downloadPhotosAsZip(photos);
+    await downloadPhotosAsZip(stampedPhotos);
   }
 }
 
@@ -1843,6 +1997,27 @@ async function downloadPhotosAsZip(photos){
     alert('Could not bundle the photos for download. Please try again.');
   }
 }
+
+/* ---------------- Warn before accidental navigation/close/refresh ---------------- */
+function hasInProgressData(){
+  const fieldIds = ['f-unit','f-trailer','f-year','f-make','f-model','f-type','f-driver','f-carrier','f-location','f-odometer','f-inspector'];
+  for(const id of fieldIds){
+    const el = document.getElementById(id);
+    if(el && el.value) return true;
+  }
+  for(const g of GROUPS){
+    if(state[g.key].some(st => st.status)) return true;
+  }
+  if(freeformFindings.some(f => f.status || (f.text && f.text.trim()))) return true;
+  return false;
+}
+
+window.addEventListener('beforeunload', function(e){
+  if(hasInProgressData()){
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 /* ---------------- Init ---------------- */
 document.getElementById('f-date').valueAsDate = new Date();
