@@ -150,7 +150,9 @@
   .cam-btn{ background:none; border:none; color:#fff; font-family:'Oswald',sans-serif; font-size:13px; text-transform:uppercase; letter-spacing:0.04em; cursor:pointer; padding:8px; }
   .cam-btn.shutter{ width:68px; height:68px; border-radius:50%; border:4px solid #fff; background:var(--accent); flex:none; }
   .cam-btn.shutter:active{ background:#c94c0a; }
+  .cam-btn.shutter:disabled{ opacity:0.4; }
   .cam-btn.switch{ font-size:22px; width:44px; }
+  .cam-btn.torch{ font-size:20px; width:44px; opacity:0.55; }
   .camera-error{ color:var(--paper); text-align:center; padding:40px 24px; font-size:14px; line-height:1.6; }
   .camera-error button{ margin-top:16px; background:var(--accent); color:#1a0d05; border:none; border-radius:8px; padding:10px 18px; font-family:'Oswald',sans-serif; text-transform:uppercase; font-weight:700; cursor:pointer; }
 </style>
@@ -195,11 +197,13 @@
         <select id="f-type">
           <option value="">Select type…</option>
           <option value="Truck Treater">Truck Treater</option>
+          <option value="Treater Hybrid">Treater Hybrid</option>
           <option value="Stake Bed">Stake Bed</option>
           <option value="Bobtail">Bobtail</option>
           <option value="Tanker">Tanker</option>
           <option value="Gooseneck">Gooseneck</option>
           <option value="Drum Trailer">Drum Trailer</option>
+          <option value="Utility Trailer">Utility Trailer</option>
           <option value="Pickup">Pickup</option>
         </select>
       </div>
@@ -252,12 +256,13 @@
 <div class="camera-overlay" id="cameraOverlay">
   <div class="camera-video-wrap" id="cameraVideoWrap">
     <video id="cameraVideo" autoplay playsinline muted></video>
-    <div class="camera-hint">Frame the defect, then tap the shutter</div>
+    <div class="camera-hint" id="cameraHint">Frame the defect, then tap the shutter</div>
   </div>
   <div class="camera-controls">
     <button class="cam-btn" onclick="cancelCameraCapture()">Cancel</button>
-    <button class="cam-btn shutter" onclick="takePhotoShot()" aria-label="Take photo"></button>
+    <button class="cam-btn shutter" id="shutterBtn" onclick="takePhotoShot()" aria-label="Take photo"></button>
     <button class="cam-btn switch" onclick="switchCamera()" title="Switch camera">⟲</button>
+    <button class="cam-btn torch" id="torchBtn" onclick="toggleTorch()" title="Flashlight" style="display:none;">💡</button>
   </div>
 </div>
 <canvas id="captureCanvas" style="display:none"></canvas>
@@ -806,11 +811,13 @@ function handleFreeformStatusClick(idx, role){
 /* ---------------- Live camera capture ---------------- */
 let cameraStream = null;
 let currentFacingMode = 'environment';
+let currentTrack = null;
+let imageCapture = null;
+let torchOn = false;
 
 async function openCameraCapture(){
   const overlay = document.getElementById('cameraOverlay');
   const wrap = document.getElementById('cameraVideoWrap');
-  const video = document.getElementById('cameraVideo');
 
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
     fallbackFileCapture();
@@ -818,16 +825,51 @@ async function openCameraCapture(){
   }
 
   overlay.classList.add('open');
-  wrap.innerHTML = `<video id="cameraVideo" autoplay playsinline muted></video><div class="camera-hint">Frame the defect, then tap the shutter</div>`;
+  wrap.innerHTML = `<video id="cameraVideo" autoplay playsinline muted></video><div class="camera-hint" id="cameraHint">Focusing…</div>`;
   const freshVideo = document.getElementById('cameraVideo');
+  const shutterBtn = document.getElementById('shutterBtn');
+  const torchBtn = document.getElementById('torchBtn');
+  torchOn = false;
+  if(shutterBtn){ shutterBtn.disabled = true; }
+  if(torchBtn){ torchBtn.style.display = 'none'; torchBtn.style.opacity = '0.55'; }
+
+  freshVideo.addEventListener('click', e=> focusAtPoint(e.clientX, e.clientY));
 
   try{
     cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: currentFacingMode } },
+      video: {
+        facingMode: { ideal: currentFacingMode },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
       audio: false
     });
     freshVideo.srcObject = cameraStream;
     freshVideo.play().catch(()=>{});
+
+    currentTrack = cameraStream.getVideoTracks()[0] || null;
+
+    imageCapture = null;
+    if(window.ImageCapture && currentTrack){
+      try{ imageCapture = new ImageCapture(currentTrack); }catch(e){ imageCapture = null; }
+    }
+
+    if(currentTrack && currentTrack.getCapabilities){
+      try{
+        const caps = currentTrack.getCapabilities();
+        if(caps && caps.torch && torchBtn){ torchBtn.style.display = ''; }
+      }catch(e){}
+    }
+
+    // Give the camera's autofocus/auto-exposure a moment to settle before
+    // allowing capture — taking a photo the instant the feed appears is a
+    // common cause of blurry shots.
+    setTimeout(()=>{
+      if(shutterBtn){ shutterBtn.disabled = false; }
+      const hint = document.getElementById('cameraHint');
+      if(hint){ hint.textContent = 'Frame the defect, then tap the shutter'; }
+    }, 700);
+
   }catch(err){
     overlay.classList.remove('open');
     fallbackFileCapture();
@@ -836,6 +878,9 @@ async function openCameraCapture(){
 
 function stopCameraStream(){
   if(cameraStream){ cameraStream.getTracks().forEach(t=>t.stop()); cameraStream = null; }
+  currentTrack = null;
+  imageCapture = null;
+  torchOn = false;
   document.getElementById('cameraOverlay').classList.remove('open');
 }
 
@@ -850,6 +895,30 @@ function switchCamera(){
   openCameraCapture();
 }
 
+async function toggleTorch(){
+  if(!currentTrack) return;
+  const wantOn = !torchOn;
+  try{
+    await currentTrack.applyConstraints({ advanced: [{ torch: wantOn }] });
+    torchOn = wantOn;
+    const torchBtn = document.getElementById('torchBtn');
+    if(torchBtn){ torchBtn.style.opacity = torchOn ? '1' : '0.55'; }
+  }catch(e){ /* torch control not supported on this device — ignore */ }
+}
+
+async function focusAtPoint(clientX, clientY){
+  if(!currentTrack || !currentTrack.getCapabilities) return;
+  try{
+    const caps = currentTrack.getCapabilities();
+    if(!caps || !caps.focusMode || caps.focusMode.indexOf('single-shot') === -1) return;
+    const video = document.getElementById('cameraVideo');
+    const rect = video.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const y = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+    await currentTrack.applyConstraints({ advanced: [{ focusMode: 'single-shot', pointsOfInterest: [{ x, y }] }] });
+  }catch(e){ /* manual focus not supported on this device/browser — ignore */ }
+}
+
 function applyCapturedPhoto(dataUrl){
   if(!pendingCapture) return;
   const {type, groupKey, idx, role} = pendingCapture;
@@ -862,22 +931,50 @@ function applyCapturedPhoto(dataUrl){
   }
 }
 
-function takePhotoShot(){
+function blobToDataUrl(blob){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function takePhotoShot(){
   const video = document.getElementById('cameraVideo');
   if(!video || !video.videoWidth){ return; }
-  const canvas = document.getElementById('captureCanvas');
-  const maxW = 480;
-  const scale = Math.min(1, maxW / video.videoWidth);
-  canvas.width = video.videoWidth * scale;
-  canvas.height = video.videoHeight * scale;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-  stopCameraStream();
-  if(pendingCapture){
-    applyCapturedPhoto(dataUrl);
-    finishPhotoCaptured();
+
+  let rawDataUrl = null;
+
+  // Prefer the browser's native still-photo capture pipeline when available —
+  // it generally produces a sharper, higher-quality image than grabbing a
+  // frame from the live video stream.
+  if(imageCapture && imageCapture.takePhoto){
+    try{
+      const blob = await imageCapture.takePhoto();
+      rawDataUrl = await blobToDataUrl(blob);
+    }catch(e){
+      rawDataUrl = null;
+    }
   }
+
+  if(!rawDataUrl){
+    const canvas = document.getElementById('captureCanvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    rawDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+  }
+
+  stopCameraStream();
+
+  compressImage(rawDataUrl, dataUrl=>{
+    if(pendingCapture){
+      applyCapturedPhoto(dataUrl);
+      finishPhotoCaptured();
+    }
+  });
 }
 
 /* After any photo is captured, ask whether another is needed for this same
@@ -956,14 +1053,14 @@ libraryInput.addEventListener('cancel', ()=>{ pendingCapture = null; });
 function compressImage(dataUrl, callback){
   const img = new Image();
   img.onload = ()=>{
-    const maxW = 480;
+    const maxW = 1280;
     const scale = Math.min(1, maxW / img.width);
     const canvas = document.createElement('canvas');
     canvas.width = img.width * scale;
     canvas.height = img.height * scale;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    callback(canvas.toDataURL('image/jpeg', 0.6));
+    callback(canvas.toDataURL('image/jpeg', 0.85));
   };
   img.onerror = ()=> callback(dataUrl);
   img.src = dataUrl;
