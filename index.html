@@ -1576,14 +1576,22 @@ async function performFullSheetSubmission(record, photos){
   try{
     const inspectionId = Date.now() + '-' + Math.random().toString(36).slice(2,8);
 
+    alert('DEBUG: starting submission. Photos to upload: ' + photos.length);
+
     await sheetGet('action=inspection&inspectionId=' + encodeURIComponent(inspectionId) + '&photoCount=' + photos.length + '&data=' + encodeURIComponent(JSON.stringify(record)));
 
+    alert('DEBUG: inspection info sent OK. Now uploading photos...');
+
     for(let i=0;i<photos.length;i++){
+      alert('DEBUG: uploading photo ' + (i+1) + ' of ' + photos.length + ' (length: ' + (photos[i] ? photos[i].length : 'MISSING') + ' chars)');
       await uploadPhotoChunks(inspectionId, i, photos[i]);
+      alert('DEBUG: photo ' + (i+1) + ' upload finished.');
     }
 
+    alert('DEBUG: submission fully complete.');
     return true;
   }catch(err){
+    alert('DEBUG: submission FAILED with error: ' + (err && err.message ? err.message : err));
     return false;
   }
 }
