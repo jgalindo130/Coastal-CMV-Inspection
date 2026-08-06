@@ -11,26 +11,30 @@
 <style>
   :root{
     --ink:#14181C; --panel:#1D2329; --panel-2:#242B32; --line:#333C45;
-    --paper:#F3F1EA; --muted:#8A94A0; --accent:#E8590C;
+    --paper:#F3F1EA; --fg:#F3F1EA; --muted:#8A94A0; --accent:#E8590C;
     --oos:#D7263D; --oos-dim:#3A1319;
     --nonoos:#F2A900; --nonoos-dim:#3A2E0A;
     --pm:#2AA9A0; --pm-dim:#123330; --ok:#2AA968; --ok-dim:#123321; --na:#6B7280; --na-dim:#262B30; --radius:10px;
   }
+  html[data-theme="light"]{
+    --ink:#F0EEE6; --panel:#FFFFFF; --panel-2:#E9E6DC; --line:#D8D4C8;
+    --fg:#1B1E22; --muted:#5A6270;
+  }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
-  body{ background:var(--ink); color:var(--paper); font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:84px; }
+  body{ background:var(--ink); color:var(--fg); font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:84px; }
   h1,h2,h3,.display{ font-family:'Oswald',sans-serif; letter-spacing:0.02em; text-transform:uppercase; margin:0; }
   .mono{ font-family:'IBM Plex Mono',monospace; letter-spacing:0.02em; }
 
-  header.app-head{ background:linear-gradient(180deg,#20262C 0%, #171C21 100%); padding:14px 16px 10px; }
+  header.app-head{ background:linear-gradient(180deg, var(--panel-2) 0%, var(--ink) 100%); padding:14px 16px 10px; }
   .brand-row{ margin:-14px -16px 12px; display:flex; justify-content:center; background:var(--paper); padding:10px 0; }
   .brand-logo{ width:100%; height:auto; display:block; }
   .head-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:960px; margin:0 auto; }
   .head-title{ display:flex; align-items:center; gap:12px; }
   .stripe-badge{ width:38px; height:38px; border-radius:6px; background:repeating-linear-gradient(45deg, var(--accent) 0 6px, #171C21 6px 12px); border:2px solid var(--accent); flex:none; }
-  .head-title h1{ font-size:18px; color:var(--paper); line-height:1.1; }
+  .head-title h1{ font-size:18px; color:var(--fg); line-height:1.1; }
   .head-title p{ margin:2px 0 0; font-size:11px; color:var(--muted); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.06em; }
-  .icon-btn{ background:var(--panel-2); border:1px solid var(--line); color:var(--paper); border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Inter',sans-serif; font-weight:600; cursor:pointer; }
+  .icon-btn{ background:var(--panel-2); border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:8px 12px; font-size:12px; font-family:'Inter',sans-serif; font-weight:600; cursor:pointer; }
 
   .vinfo{ max-width:960px; margin:14px auto 0; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
   .vinfo-toggle{ width:100%; background:none; border:none; color:var(--muted); text-align:left; padding:12px 14px; font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
@@ -38,7 +42,7 @@
   .vinfo-body{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; padding:0 14px 14px; }
   .vinfo-body.collapsed{ display:none; }
   .field label{ display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:4px; }
-  .field input, .field select{ width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:9px 10px; font-size:14px; font-family:'IBM Plex Mono',monospace; }
+  .field input, .field select{ width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--fg); padding:9px 10px; font-size:14px; font-family:'IBM Plex Mono',monospace; }
   .field input:focus, .field select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
 
   .progress-wrap{ max-width:960px; margin:14px auto 0; padding:0 16px; }
@@ -54,7 +58,7 @@
   .tab{ flex:none; min-width:118px; background:var(--panel); border:1px solid var(--line); border-radius:8px 8px 0 0; padding:10px 8px; text-align:center; cursor:pointer; position:relative; }
   .tab.active{ background:var(--panel-2); border-bottom-color:var(--panel-2); }
   .tab.active::after{ content:''; position:absolute; left:0; right:0; bottom:-2px; height:3px; background:var(--accent); }
-  .tab-label{ font-family:'Oswald',sans-serif; font-size:11.5px; letter-spacing:0.04em; text-transform:uppercase; color:var(--paper); white-space:nowrap; }
+  .tab-label{ font-family:'Oswald',sans-serif; font-size:11.5px; letter-spacing:0.04em; text-transform:uppercase; color:var(--fg); white-space:nowrap; }
   .tab-count{ display:block; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); margin-top:3px; }
 
   main{ max-width:960px; margin:0 auto; padding:0 16px 20px; }
@@ -62,7 +66,7 @@
   .item{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; margin:8px 0; }
   .item-top{ display:flex; gap:10px; align-items:flex-start; }
   .item-code{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink); background:var(--accent); padding:3px 7px; border-radius:5px; flex:none; font-weight:600; margin-top:2px; }
-  .item-title{ font-size:15px; font-weight:600; color:var(--paper); }
+  .item-title{ font-size:15px; font-weight:600; color:var(--fg); }
   .item-desc{ font-size:12.5px; color:var(--muted); margin-top:3px; line-height:1.4; }
   .status-tag{ display:inline-block; margin-top:8px; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:3px 8px; border-radius:5px; letter-spacing:0.04em; }
   .status-tag.compliant{ background:var(--ok-dim); color:#8FE8B4; }
@@ -72,7 +76,7 @@
   .status-tag.pm{ background:var(--pm-dim); color:#7FE0D8; }
 
   .btn-row{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
-  .vbtn{ flex:1; min-width:100px; border-radius:8px; padding:11px 8px; font-family:'Oswald',sans-serif; font-size:11.5px; letter-spacing:0.03em; text-transform:uppercase; font-weight:600; cursor:pointer; border:1.5px solid var(--line); background:var(--panel); color:var(--paper); }
+  .vbtn{ flex:1; min-width:100px; border-radius:8px; padding:11px 8px; font-family:'Oswald',sans-serif; font-size:11.5px; letter-spacing:0.03em; text-transform:uppercase; font-weight:600; cursor:pointer; border:1.5px solid var(--line); background:var(--panel); color:var(--fg); }
   .vbtn:active{ transform:scale(0.97); }
   .vbtn.compliant.on{ background:var(--ok); border-color:var(--ok); color:#04210f; }
   .vbtn.na.on{ background:var(--na); border-color:var(--na); color:#fff; }
@@ -92,15 +96,15 @@
   .note-area{ margin-top:8px; display:none; }
   .note-area.open{ display:block; }
   .note-input-row{ display:flex; gap:8px; align-items:flex-start; }
-  .note-area textarea{ flex:1; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:9px 10px; font-size:13px; font-family:'Inter',sans-serif; resize:vertical; min-height:52px; }
-  .finding-textarea{ flex:1; width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:12px 14px; font-size:16px; font-family:'Oswald',sans-serif; letter-spacing:0.01em; resize:vertical; min-height:64px; }
-  .mic-btn{ flex:none; width:38px; height:38px; border-radius:8px; border:1.5px solid var(--line); background:var(--panel-2); color:var(--paper); cursor:pointer; font-size:15px; }
+  .note-area textarea{ flex:1; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--fg); padding:9px 10px; font-size:13px; font-family:'Inter',sans-serif; resize:vertical; min-height:52px; }
+  .finding-textarea{ flex:1; width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--fg); padding:12px 14px; font-size:16px; font-family:'Oswald',sans-serif; letter-spacing:0.01em; resize:vertical; min-height:64px; }
+  .mic-btn{ flex:none; width:38px; height:38px; border-radius:8px; border:1.5px solid var(--line); background:var(--panel-2); color:var(--fg); cursor:pointer; font-size:15px; }
   .mic-btn.recording{ background:var(--oos); border-color:var(--oos); color:#fff; animation:pulse 1s infinite; }
   .mic-btn:disabled{ opacity:0.35; cursor:not-allowed; }
   @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(215,38,61,.5);} 70%{box-shadow:0 0 0 8px rgba(215,38,61,0);} 100%{box-shadow:0 0 0 0 rgba(215,38,61,0);} }
 
   .cert-section{ max-width:960px; margin:22px auto 0; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px 16px; }
-  .cert-section h2{ font-size:15px; color:var(--paper); margin-bottom:4px; }
+  .cert-section h2{ font-size:15px; color:var(--fg); margin-bottom:4px; }
   .cert-section .cert-sub{ font-size:11.5px; color:var(--muted); margin-bottom:14px; }
   .cert-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
 
@@ -171,6 +175,7 @@
       </div>
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="icon-btn" onclick="toggleColorTheme()" id="themeToggleBtn" title="Switch light/dark theme">🌙 Dark</button>
       <button class="icon-btn" onclick="confirmNewReport()">New Report</button>
       <button class="icon-btn" onclick="openAuditReport()">Audit Report</button>
       <button class="icon-btn" onclick="openReport()">Summary</button>
@@ -346,6 +351,19 @@
     <div class="report-actions">
       <button class="rbtn" onclick="finishPhotosForItem()">No, I'm Done</button>
       <button class="rbtn primary" onclick="addAnotherPhoto()">Yes, Add Another</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="exitConfirmOverlay">
+  <div class="report" style="max-width:380px;">
+    <h2>Exit Inspection?</h2>
+    <div class="sub" style="text-transform:none; font-family:'Inter',sans-serif; font-size:13px; margin-top:10px; color:#3A4048;">
+      You have an inspection in progress. Are you sure you want to exit? Anything not saved will be lost.
+    </div>
+    <div class="report-actions">
+      <button class="rbtn" onclick="confirmExitNo()">No, Stay</button>
+      <button class="rbtn primary" onclick="confirmExitYes()">Yes, Exit</button>
     </div>
   </div>
 </div>
@@ -612,7 +630,7 @@ function renderPanel(){
     const permitHtml = item[0]==='Special Permit'
       ? `<div style="margin-top:10px;">
           <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:4px;">Permit Number</label>
-          <input data-role="permitnum" type="text" placeholder="Enter permit number if applicable" value="${(st.permitNumber||'').replace(/"/g,'&quot;')}" style="width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:9px 10px; font-size:13px; font-family:'IBM Plex Mono',monospace;">
+          <input data-role="permitnum" type="text" placeholder="Enter permit number if applicable" value="${(st.permitNumber||'').replace(/"/g,'&quot;')}" style="width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--fg); padding:9px 10px; font-size:13px; font-family:'IBM Plex Mono',monospace;">
         </div>`
       : '';
 
@@ -620,9 +638,9 @@ function renderPanel(){
     const intervalHtml = intervalMonths
       ? `<div style="margin-top:10px;">
           <label style="display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:4px;">Date Last Inspected</label>
-          <input data-role="lastinspected" type="date" value="${st.lastInspected||''}" style="width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--paper); padding:9px 10px; font-size:13px; font-family:'IBM Plex Mono',monospace;">
+          <input data-role="lastinspected" type="date" value="${st.lastInspected||''}" style="width:100%; background:var(--ink); border:1px solid var(--line); border-radius:6px; color:var(--fg); padding:9px 10px; font-size:13px; font-family:'IBM Plex Mono',monospace;">
           <div style="margin-top:6px; font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace;">
-            Next inspection due: <span style="color:var(--paper); font-weight:600;">${computeNextDueDate(st.lastInspected, intervalMonths)}</span>
+            Next inspection due: <span style="color:var(--fg); font-weight:600;">${computeNextDueDate(st.lastInspected, intervalMonths)}</span>
           </div>
         </div>`
       : '';
@@ -2168,9 +2186,55 @@ window.addEventListener('beforeunload', function(e){
   }
 });
 
+/* ---------------- Back-button exit confirmation ---------------- */
+let allowExitNavigation = false;
+
+function armBackButtonTrap(){
+  history.pushState({trap:true}, '', location.href);
+}
+
+window.addEventListener('popstate', function(){
+  if(allowExitNavigation){ return; }
+  if(!hasInProgressData()){
+    allowExitNavigation = true;
+    history.back();
+    return;
+  }
+  document.getElementById('exitConfirmOverlay').classList.add('open');
+});
+
+function confirmExitYes(){
+  document.getElementById('exitConfirmOverlay').classList.remove('open');
+  allowExitNavigation = true;
+  history.back();
+}
+
+function confirmExitNo(){
+  document.getElementById('exitConfirmOverlay').classList.remove('open');
+  armBackButtonTrap();
+}
+
+/* ---------------- Light/dark theme toggle ---------------- */
+function toggleColorTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  setColorTheme(isLight ? 'dark' : 'light');
+}
+function setColorTheme(theme){
+  const btn = document.getElementById('themeToggleBtn');
+  if(theme === 'light'){
+    document.documentElement.setAttribute('data-theme', 'light');
+    if(btn){ btn.textContent = '☀️ Light'; }
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    if(btn){ btn.textContent = '🌙 Dark'; }
+  }
+}
+
 /* ---------------- Init ---------------- */
 document.getElementById('f-date').valueAsDate = new Date();
 window.addEventListener('online', flushPendingSheetSubmissions);
+setColorTheme('dark');
+armBackButtonTrap();
 renderAll();
 </script>
 
